@@ -1,0 +1,37 @@
+# dependencies
+node_modules/
+
+# secrets - never commit these, see CLAUDE.md §9
+.env
+.env.local
+.env.*.local
+.dev.vars
+.secrets.production.json
+
+# build output
+dist/
+build/
+.wrangler/
+.test-dist/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+*.tsbuildinfo
+
+# local scratch - files Claude Code/Cowork drops in the repo root when
+# saving chat outputs on this machine, not part of the project itself
+/Claude outputs/
+
+# internal docs, schema, and local scratch - kept local only, not in the
+# (public) repo. Everything under /claude/ is local-only working material:
+# db/ (schema.sql), input/ (guidelines + planning notes), output/ (scratch).
+/CLAUDE.md
+/SOURCES_VERIFICATION.md
+/claude/

@@ -1,0 +1,35 @@
+name: Ingest
+
+on:
+  # Every 15 minutes, per CLAUDE.md's tech-stack decision. GitHub Actions'
+  # own cron scheduler is best-effort and can lag under platform load —
+  # that's a known tradeoff of using free, native Actions cron rather
+  # than a paid/external scheduler, not a bug in this workflow.
+  schedule:
+    - cron: "*/15 * * * *"
+  # Lets a run be kicked off by hand from the Actions tab, and is also
+  # how CLAUDE.md's build-order note says to verify this workflow at all
+  # before trusting the cron schedule.
+  workflow_dispatch:
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm ingest
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

@@ -1,0 +1,23 @@
+{
+  "name": "@deshmonitor/ingest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "dev": "tsx watch src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc --noEmit false --outDir .test-dist --module NodeNext --moduleResolution NodeNext && node --test .test-dist/__tests__/*.test.js && rm -rf .test-dist"
+  },
+  "dependencies": {
+    "@deshmonitor/shared-types": "workspace:*",
+    "pg": "^8.13.1",
+    "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
