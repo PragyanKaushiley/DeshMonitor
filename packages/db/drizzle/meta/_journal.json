@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790094914626,
+      "tag": "0000_magical_naoko",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790097168757,
+      "tag": "0001_famous_albert_cleary",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790100142413,
+      "tag": "0002_opposite_stryfe",
+      "breakpoints": true
+    }
+  ]
+}

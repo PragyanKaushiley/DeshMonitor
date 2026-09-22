@@ -1,0 +1,26 @@
+{
+  "name": "@desh-monitor/db",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo \"no lint configured for @desh-monitor/db\"",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/migrate.ts"
+  },
+  "dependencies": {
+    "@desh-monitor/config": "workspace:*",
+    "@neondatabase/serverless": "^0.10.4",
+    "drizzle-orm": "^0.38.4"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.30.2",
+    "tsx": "^4.19.2",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "@desh-monitor/ingest",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo \"no lint configured for @desh-monitor/ingest\"",
+    "test": "vitest run",
+    "fetch:news": "tsx src/domains/news/run.ts",
+    "seed:news": "tsx src/domains/news/seed.ts",
+    "seed:weather": "tsx src/domains/weather/seed.ts",
+    "fetch:weather-forecast": "tsx src/domains/weather/forecast/run.ts",
+    "fetch:weather-air-quality": "tsx src/domains/weather/airQuality/run.ts",
+    "fetch:weather-seasonal": "tsx src/domains/weather/seasonal/run.ts",
+    "fetch:weather-marine": "tsx src/domains/weather/marine/run.ts",
+    "fetch:weather-flood": "tsx src/domains/weather/flood/run.ts",
+    "fetch:weather-climate": "tsx src/domains/weather/climate/run.ts"
+  },
+  "dependencies": {
+    "@desh-monitor/config": "workspace:*",
+    "@desh-monitor/db": "workspace:*",
+    "@desh-monitor/logger": "workspace:*",
+    "@desh-monitor/utils": "workspace:*",
+    "rss-parser": "^3.13.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "vitest": "^2.1.8"
+  }
+}
