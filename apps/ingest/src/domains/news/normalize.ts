@@ -1,6 +1,6 @@
-import type Parser from "rss-parser";
 import { normalizeUrl, sha256Hex } from "@desh-monitor/utils";
 import type { NewsItemInput, SourceRecord } from "@desh-monitor/db";
+import { extractImageUrl, type RssItem } from "./image";
 
 function parseDate(value: string | undefined): Date | null {
   if (!value) return null;
@@ -8,7 +8,7 @@ function parseDate(value: string | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function normalizeRssItem(item: Parser.Item, source: SourceRecord): NewsItemInput {
+export function normalizeRssItem(item: RssItem, source: SourceRecord): NewsItemInput {
   const link = (item.link ?? "").trim();
 
   let url: string;
@@ -35,6 +35,7 @@ export function normalizeRssItem(item: Parser.Item, source: SourceRecord): NewsI
     author,
     publishedAt,
     sourceCategories,
+    imageUrl: extractImageUrl(item),
     contentHash: sha256Hex(`${title}|${url}`),
     rawPayload: item,
   };

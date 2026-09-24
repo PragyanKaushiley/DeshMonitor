@@ -104,6 +104,8 @@ export function GlobeScene({
   const hintRef = useRef<HTMLDivElement>(null);
   const hintWrapRef = useRef<HTMLDivElement>(null);
   const taglineRef = useRef<HTMLSpanElement>(null);
+  const [webglFailed, setWebglFailed] = useState(false);
+  const [heroOnScreen, setHeroOnScreen] = useState(true);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -150,6 +152,8 @@ export function GlobeScene({
       scrub: true,
       pin: true,
       pinSpacing: false,
+      onLeave: () => setHeroOnScreen(false),
+      onEnterBack: () => setHeroOnScreen(true),
       onUpdate: (self) => {
         scroll.t = self.progress;
         if (self.progress >= ROTATE_END_T - 0.05) setStatus(INDIA_COORDS_LABEL);
@@ -333,6 +337,9 @@ export function GlobeScene({
         const now = performance.now();
         const dt = (now - lastTickTime) / 1000;
         lastTickTime = now;
+        // Past the end of the pin the hero is fully faded and scrolled away —
+        // stop redrawing the full-screen canvas until it comes back.
+        if (scroll.t >= 1) return;
         if (!dragging && now - lastActivity > IDLE_RESUME_MS && scroll.t <= 0.0005) {
           idleYaw += IDLE_SPEED * dt;
         }
@@ -382,7 +389,10 @@ export function GlobeScene({
     }
 
     setup().catch(() => {
-      // WebGL unavailable etc. — never hold the loader hostage.
+      // WebGL unavailable (GPU blocklisted, hardware acceleration off, …):
+      // show the static poster instead of an empty hero, and never hold the
+      // loader hostage.
+      if (!cancelled) setWebglFailed(true);
       markGlobeReady();
     });
 
@@ -433,9 +443,9 @@ export function GlobeScene({
         <div className="relative size-[min(50vh,80vw)] dark:invert">
           <Image src="/landing/globe/poster.webp" alt="A stylized globe centered on India" fill className="object-contain" priority />
         </div>
-        <span data-hero-brand className="inline-block font-display text-4xl text-foreground sm:text-6xl">
-          <Desh /> Monitor
-        </span>
+        <h1 data-hero-brand className="inline-block font-display text-4xl text-foreground sm:text-6xl">
+          <Desh explain /> Monitor
+        </h1>
         <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground">{INDIA_COORDS_LABEL}</p>
       </section>
     );
@@ -453,7 +463,17 @@ export function GlobeScene({
         </div>
       </div>
 
-      {showRays && (
+      {webglFailed && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="relative size-[min(80vw,560px)] opacity-90 dark:invert">
+            <Image src="/landing/globe/poster.webp" alt="A stylized globe centered on India" fill className="object-contain" priority />
+          </div>
+        </div>
+      )}
+
+      {/* Unmounted (not just hidden) off-screen — their JS animations would
+          otherwise keep running while the rest of the page is read. */}
+      {showRays && heroOnScreen && (
         <div className="pointer-events-none absolute inset-0 animate-in fade-in duration-[1500ms]">
           <LightRays color="var(--light-ray)" count={6} blur={28} length="85%" />
         </div>
@@ -463,13 +483,13 @@ export function GlobeScene({
         ref={brandRef}
         className="pointer-events-none absolute inset-x-0 bottom-24 flex flex-col items-start px-6 sm:px-12 md:inset-x-auto md:inset-y-0 md:right-0 md:w-[42%] md:items-end md:justify-center md:text-right"
       >
-        <span
+        <h1
           data-hero-brand
           className="inline-block whitespace-nowrap font-display text-4xl text-foreground sm:text-5xl lg:text-7xl"
           style={{ opacity: ready ? 1 : 0 }}
         >
-          <Desh /> Monitor
-        </span>
+          <Desh explain /> Monitor
+        </h1>
         <span ref={taglineRef} className="mt-4 max-w-md font-display text-lg text-muted-foreground sm:text-xl">
           <span className="block opacity-0">India is constantly changing.</span>
           <span className="block opacity-0">This is where you watch it happen.</span>
@@ -477,8 +497,8 @@ export function GlobeScene({
       </div>
 
       <div ref={hintWrapRef} className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center opacity-0">
-        <div ref={hintRef} className="flex flex-col items-center gap-1 text-muted-foreground/60">
-          <span className="font-mono text-[10px] tracking-[0.3em]">SCROLL</span>
+        <div ref={hintRef} className="flex flex-col items-center gap-1 text-muted-foreground">
+          <span className="font-mono text-[11px] tracking-[0.3em]">SCROLL</span>
           <ChevronDown className="size-4 animate-bounce [animation-duration:2s]" aria-hidden />
         </div>
       </div>

@@ -35,6 +35,21 @@ describe("normalizeRssItem", () => {
     expect(a.contentHash).toBe(b.contentHash);
   });
 
+  it("includes the cover image when the item has one, and null otherwise", () => {
+    const withImage = normalizeRssItem(
+      {
+        title: "Headline",
+        link: "https://example.com/a",
+        enclosure: { url: "https://img.example.com/a.jpg", type: "image/jpeg" },
+      },
+      source,
+    );
+    expect(withImage.imageUrl).toBe("https://img.example.com/a.jpg");
+
+    const withoutImage = normalizeRssItem({ title: "Headline", link: "https://example.com/a" }, source);
+    expect(withoutImage.imageUrl).toBeNull();
+  });
+
   it("returns null publishedAt when no date fields are present", () => {
     const record = normalizeRssItem({ title: "Headline", link: "https://example.com/a" }, source);
     expect(record.publishedAt).toBeNull();

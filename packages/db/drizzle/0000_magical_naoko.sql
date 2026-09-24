@@ -26,6 +26,7 @@ CREATE TABLE "raw_news"."items" (
 	"published_at" timestamp with time zone,
 	"fetched_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"source_categories" text[],
+	"image_url" text,
 	"content_hash" text NOT NULL,
 	"raw_payload" jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL

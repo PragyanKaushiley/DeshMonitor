@@ -40,6 +40,11 @@ function labelForAsset(currentAsset: string | undefined, assetsDone: boolean, gl
 // globe build, so the bar doesn't sit at 100% while the globe is built.
 const ASSET_SHARE = 0.75;
 
+// Set once the loader has finished in this page session. Returning to the
+// home page via in-app navigation then skips the 3s minimum (everything is
+// cached); a full reload resets it, so a fresh visit still gets the intro.
+let loaderHasPlayed = false;
+
 export function LandingLoader({ onComplete }: { onComplete: () => void }) {
   const { progress, currentAsset, isComplete, failed } = useLandingAssetLoader();
   const prefersReducedMotion = usePrefersReducedMotion();
@@ -52,6 +57,15 @@ export function LandingLoader({ onComplete }: { onComplete: () => void }) {
   const completedRef = useRef(false);
   const mountedAtRef = useRef<number | null>(null);
   if (mountedAtRef.current === null) mountedAtRef.current = performance.now();
+  const minDisplayRef = useRef<number | null>(null);
+  if (minDisplayRef.current === null) minDisplayRef.current = loaderHasPlayed ? 0 : MIN_DISPLAY_MS;
+  const minDisplayMs = minDisplayRef.current;
+
+  // Progress numbers/labels and the screen-reader message render only after
+  // hydration, so the server HTML (what crawlers index) doesn't include
+  // "00% INITIALIZING…" as page content.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
 
   // Scroll lock while the loader is up. Keyed on `active` because this
   // component stays mounted (rendering null) after it finishes, so an
@@ -76,12 +90,12 @@ export function LandingLoader({ onComplete }: { onComplete: () => void }) {
     if (state !== "loading") return;
     const id = window.setInterval(() => {
       const elapsed = performance.now() - (mountedAtRef.current ?? performance.now());
-      const share = Math.min(elapsed / MIN_DISPLAY_MS, 1);
+      const share = minDisplayMs > 0 ? Math.min(elapsed / minDisplayMs, 1) : 1;
       setTimeShare(share);
       if (share >= 1) window.clearInterval(id);
     }, 50);
     return () => window.clearInterval(id);
-  }, [state]);
+  }, [state, minDisplayMs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +112,7 @@ export function LandingLoader({ onComplete }: { onComplete: () => void }) {
     completedRef.current = true;
 
     const finish = () => {
+      loaderHasPlayed = true;
       setState("active");
       onComplete();
     };
@@ -137,10 +152,10 @@ export function LandingLoader({ onComplete }: { onComplete: () => void }) {
     };
 
     const elapsed = performance.now() - (mountedAtRef.current ?? performance.now());
-    const remaining = prefersReducedMotion ? 0 : Math.max(0, MIN_DISPLAY_MS - elapsed);
+    const remaining = prefersReducedMotion ? 0 : Math.max(0, minDisplayMs - elapsed);
     const timeoutId = window.setTimeout(beginExit, remaining);
     return () => window.clearTimeout(timeoutId);
-  }, [isComplete, globeReady, onComplete, prefersReducedMotion]);
+  }, [isComplete, globeReady, onComplete, prefersReducedMotion, minDisplayMs]);
 
   if (state === "active") return null;
 
@@ -152,25 +167,32 @@ export function LandingLoader({ onComplete }: { onComplete: () => void }) {
   return (
     <div
       ref={rootRef}
-      role="status"
-      aria-live="polite"
-      aria-busy={state === "loading"}
       className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden text-foreground"
     >
-      <div ref={bgRef} className="absolute inset-0 overflow-hidden bg-background">
-        {!prefersReducedMotion && <Meteors number={28} />}
+      {/* The only thing assistive tech hears: two milestone messages, instead
+          of the percentage ticking every 50ms inside a live region. */}
+      <span role="status" className="sr-only">
+        {hydrated ? (state === "loading" ? "Loading देश Monitor" : "देश Monitor is ready") : ""}
+      </span>
+
+      <div ref={bgRef} aria-hidden className="absolute inset-0 overflow-hidden bg-background">
+        {!prefersReducedMotion && <Meteors number={40} />}
       </div>
 
-      <div className="relative flex flex-col items-center gap-6">
+      <div aria-hidden className="relative flex flex-col items-center gap-6">
         <span ref={wordmarkRef} className="inline-block origin-center font-display text-3xl text-foreground will-change-transform sm:text-4xl">
           <Desh /> Monitor
         </span>
         <div ref={metaRef} className="flex flex-col items-center gap-6">
           <span className="font-mono text-xs tracking-[0.3em] text-muted-foreground">
-            {String(percent).padStart(2, "0")}%
+            {hydrated ? `${String(percent).padStart(2, "0")}%` : " "}
           </span>
           <span className="font-mono text-[11px] tracking-[0.25em] text-muted-foreground/80">
-            {hasCriticalFailure ? "SOME DATA FAILED TO LOAD" : labelForAsset(currentAsset, isComplete, globeReady)}
+            {!hydrated
+              ? " "
+              : hasCriticalFailure
+                ? "SOME DATA FAILED TO LOAD"
+                : labelForAsset(currentAsset, isComplete, globeReady)}
           </span>
           <div className="mt-6 h-px w-48 overflow-hidden bg-border sm:w-64">
             <div

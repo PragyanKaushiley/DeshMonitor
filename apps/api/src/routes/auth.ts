@@ -1,10 +1,20 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
-import { createDb, createUser, getUserByEmail, getUserById } from "@desh-monitor/db";
-import { checkRateLimit, createRedis, createSession, deleteSession, getSession } from "@desh-monitor/redis";
+import {
+  createAuthSession,
+  createDb,
+  createUser,
+  endAuthSession,
+  getUserByEmail,
+  getUserById,
+  linkVisitorToUser,
+  type Database,
+} from "@desh-monitor/db";
+import { checkRateLimit, createRedis, deleteSession, getSession, newSessionToken, storeSession } from "@desh-monitor/redis";
 import type { Bindings } from "../types";
-import { clearSessionCookie, getSessionToken, setSessionCookie } from "../lib/cookies";
+import { clearSessionCookie, getSessionToken, getVisitorId, setSessionCookie } from "../lib/cookies";
 import { hashPassword, verifyPassword } from "../lib/password";
+import { getRequestMeta, sha256Hex } from "../lib/requestMeta";
 
 const credentialsSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -13,6 +23,32 @@ const credentialsSchema = z.object({
 
 function toPublicUser(user: { id: string; email: string }) {
   return { id: user.id, email: user.email };
+}
+
+// Starts a login session: a durable record in Neon (by token hash, with the
+// request's IP/location), the active session in Redis, the cookie, and — if
+// this browser has an anonymous visitor id — links its earlier visits.
+async function startSession(
+  c: Context<{ Bindings: Bindings }>,
+  db: Database,
+  redis: ReturnType<typeof createRedis>,
+  userId: string,
+): Promise<void> {
+  const token = newSessionToken();
+  const context = getRequestMeta(c);
+  const authSessionId = await createAuthSession(db, { userId, tokenHash: await sha256Hex(token), context });
+  await storeSession(redis, token, userId, {
+    authSessionId,
+    createdAt: new Date().toISOString(),
+    ip: context.ip,
+    country: context.country,
+    city: context.city,
+    userAgent: context.userAgent,
+  });
+  setSessionCookie(c, token);
+
+  const visitorId = getVisitorId(c);
+  if (visitorId) await linkVisitorToUser(db, visitorId, userId);
 }
 
 export const authRoutes = new Hono<{ Bindings: Bindings }>();
@@ -34,8 +70,7 @@ authRoutes.post("/signup", async (c) => {
   const user = await createUser(db, { email: parsed.data.email, passwordHash });
 
   const redis = createRedis({ url: c.env.UPSTASH_REDIS_REST_URL, token: c.env.UPSTASH_REDIS_REST_TOKEN });
-  const token = await createSession(redis, user.id);
-  setSessionCookie(c, token);
+  await startSession(c, db, redis, user.id);
 
   return c.json({ user: toPublicUser(user) }, 201);
 });
@@ -68,8 +103,7 @@ authRoutes.post("/login", async (c) => {
     return c.json({ error: "invalid_credentials" }, 401);
   }
 
-  const token = await createSession(redis, user.id);
-  setSessionCookie(c, token);
+  await startSession(c, db, redis, user.id);
 
   return c.json({ user: toPublicUser(user) });
 });
@@ -79,6 +113,7 @@ authRoutes.post("/logout", async (c) => {
   if (token) {
     const redis = createRedis({ url: c.env.UPSTASH_REDIS_REST_URL, token: c.env.UPSTASH_REDIS_REST_TOKEN });
     await deleteSession(redis, token);
+    await endAuthSession(createDb(c.env.DATABASE_URL), await sha256Hex(token));
   }
   clearSessionCookie(c);
   return c.json({ ok: true });

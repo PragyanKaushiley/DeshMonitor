@@ -175,6 +175,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "content_hash": {
           "name": "content_hash",
           "type": "text",

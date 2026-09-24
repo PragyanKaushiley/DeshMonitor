@@ -78,6 +78,7 @@ function ThemeTogglerButton({
       {({ effective, resolved, toggleTheme }) => (
         <button
           data-slot="theme-toggler-button"
+          aria-label={`Switch to ${getNextTheme(effective, resolved, modes)} theme`}
           className={cn(buttonVariants({ variant, size, className }))}
           onClick={(e) => {
             onClick?.(e);

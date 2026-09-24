@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 import { gsap } from "@/lib/landing/gsapSetup";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { Desh } from "./Desh";
 
@@ -139,9 +139,9 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
         </div>
 
         <div ref={copyRef} className="flex flex-col items-center gap-2">
-          <p className="font-display text-4xl text-foreground sm:text-5xl">INDIA</p>
+          <h2 className="font-display text-4xl text-foreground sm:text-5xl">INDIA</h2>
           <p className="font-display text-xl text-muted-foreground sm:text-2xl">is constantly changing.</p>
-          <p className="max-w-md font-display text-base text-muted-foreground/80 sm:text-lg">
+          <p className="max-w-md font-display text-base text-muted-foreground sm:text-lg">
             Real-time signals from news, weather, and beyond — collected, verified, and made visible.
           </p>
           <p className="mt-3 font-display text-3xl text-foreground sm:text-4xl">
@@ -149,7 +149,7 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
           </p>
           <p className="font-display text-lg text-muted-foreground sm:text-xl">See what&apos;s happening.</p>
           <Link
-            href="/monitor"
+            href="/monitor?utm_source=deshmonitor&utm_medium=landing&utm_campaign=enter_monitor&utm_content=india_reveal_cta"
             className="mt-3 inline-flex items-center gap-2 border border-foreground/30 px-6 py-3 font-mono text-xs tracking-[0.2em] text-foreground transition-colors hover:bg-foreground hover:text-background"
           >
             ENTER <Desh /> MONITOR
@@ -161,9 +161,9 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
       {!rm && (
         <div
           ref={hintRef}
-          className="pointer-events-none absolute inset-x-0 bottom-6 flex flex-col items-center gap-1 text-muted-foreground/60"
+          className="pointer-events-none absolute inset-x-0 bottom-6 flex flex-col items-center gap-1 text-muted-foreground"
         >
-          <span className="font-mono text-[10px] tracking-[0.3em]">SEE WHAT WE&apos;RE WATCHING</span>
+          <span className="font-mono text-[11px] tracking-[0.3em]">SEE WHAT WE&apos;RE WATCHING</span>
           <ChevronDown className="size-4 animate-bounce [animation-duration:2s]" aria-hidden />
         </div>
       )}
@@ -183,7 +183,9 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
             >
               <ShineBorder shineColor={SHINE_COLORS} />
               <CardContent>
-                <CardTitle className="font-mono text-[10px] tracking-[0.2em] md:text-sm">{category.title}</CardTitle>
+                <h3 data-slot="card-title" className="font-mono text-[10px] leading-snug font-medium tracking-[0.2em] md:text-sm">
+                  {category.title}
+                </h3>
                 <CardDescription className="mt-2 text-xs md:text-base">{category.description}</CardDescription>
               </CardContent>
             </Card>

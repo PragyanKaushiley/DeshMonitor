@@ -29,6 +29,7 @@ export interface NewsItemInput {
   author?: string | null;
   publishedAt?: Date | null;
   sourceCategories?: string[] | null;
+  imageUrl?: string | null;
   contentHash: string;
   rawPayload: unknown;
 }
@@ -89,4 +90,26 @@ export async function insertItems(
 
 export async function recordFetch(db: Database, input: FetchRecordInput): Promise<void> {
   await db.insert(fetches).values(input);
+}
+
+// For reprocessing stored raw payloads: pages through items with no image,
+// in id order (pass the last id seen to get the next page).
+export async function listItemsWithoutImage(
+  db: Database,
+  input: { afterId: string | null; limit: number },
+): Promise<{ id: string; rawPayload: unknown }[]> {
+  return db
+    .select({ id: items.id, rawPayload: items.rawPayload })
+    .from(items)
+    .where(
+      input.afterId
+        ? sql`${items.imageUrl} is null and ${items.id} > ${input.afterId}`
+        : sql`${items.imageUrl} is null`,
+    )
+    .orderBy(items.id)
+    .limit(input.limit);
+}
+
+export async function setItemImageUrl(db: Database, id: string, imageUrl: string): Promise<void> {
+  await db.update(items).set({ imageUrl }).where(eq(items.id, id));
 }

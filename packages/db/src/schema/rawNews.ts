@@ -38,6 +38,9 @@ export const items = rawNewsSchema.table(
     publishedAt: timestamp("published_at", { withTimezone: true }),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
     sourceCategories: text("source_categories").array(),
+    // Cover image URL exactly as the feed provides it (media:content,
+    // media:thumbnail, an image enclosure, or an <img> in the description).
+    imageUrl: text("image_url"),
     contentHash: text("content_hash").notNull(),
     rawPayload: jsonb("raw_payload").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -10,6 +10,7 @@
     "test": "vitest run",
     "fetch:news": "tsx src/domains/news/run.ts",
     "seed:news": "tsx src/domains/news/seed.ts",
+    "backfill:news-images": "tsx src/domains/news/backfillImages.ts",
     "seed:weather": "tsx src/domains/weather/seed.ts",
     "fetch:weather-forecast": "tsx src/domains/weather/forecast/run.ts",
     "fetch:weather-air-quality": "tsx src/domains/weather/airQuality/run.ts",

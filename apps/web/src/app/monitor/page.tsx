@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Desh } from "@/components/landing/Desh";
+import { VisitTracker } from "@/components/consent/VisitTracker";
 
 export const metadata: Metadata = {
-  title: "Monitor — Desh Monitor",
+  title: "Monitor",
+  // Placeholder until the dashboard exists — keep it out of search results.
+  robots: { index: false, follow: true },
 };
 
 export default function MonitorPage() {
@@ -17,6 +20,8 @@ export default function MonitorPage() {
       <Link href="/" className="font-mono text-xs tracking-[0.2em] underline underline-offset-4">
         ← BACK
       </Link>
+      {/* Records the visit (with the CTA's UTM tags) if consent was given. */}
+      <VisitTracker />
     </main>
   );
 }

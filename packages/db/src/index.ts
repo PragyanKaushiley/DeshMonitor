@@ -6,6 +6,8 @@ export {
   getActiveSources,
   insertItems,
   recordFetch,
+  listItemsWithoutImage,
+  setItemImageUrl,
 } from "./repositories/news";
 export type {
   SourceSeedInput,
@@ -45,3 +47,22 @@ export type {
 export * as appSchema from "./schema/app";
 export { createUser, getUserByEmail, getUserById } from "./repositories/users";
 export type { UserRecord, CreateUserInput } from "./repositories/users";
+export {
+  VISIT_IDLE_WINDOW_MS,
+  createAuthSession,
+  endAuthSession,
+  getAuthSessionByTokenHash,
+  listVisitorSessions,
+  getVisitor,
+  getOrCreateVisitor,
+  linkVisitorToUser,
+  recordVisit,
+} from "./repositories/sessions";
+export type {
+  RequestContext,
+  CreateAuthSessionInput,
+  AuthSessionRecord,
+  VisitorRecord,
+  VisitorSessionRecord,
+  VisitInput,
+} from "./repositories/sessions";

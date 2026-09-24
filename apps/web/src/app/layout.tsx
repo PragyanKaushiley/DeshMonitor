@@ -20,7 +20,10 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Desh Monitor",
+  title: {
+    default: "Desh Monitor — Real-time signals about India",
+    template: "%s — Desh Monitor",
+  },
   description: "India is constantly changing. Desh Monitor helps you see it.",
 };
 

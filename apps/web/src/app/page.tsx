@@ -3,6 +3,7 @@
 import { useCallback, useLayoutEffect, useState } from "react";
 import { LandingLoader } from "@/components/landing/LandingLoader";
 import { CinematicJourney, type LandingPhase } from "@/components/landing/CinematicJourney";
+import { VisitTracker } from "@/components/consent/VisitTracker";
 
 export default function Home() {
   const [phase, setPhase] = useState<LandingPhase>("loading");
@@ -33,8 +34,13 @@ export default function Home() {
     <main className="relative">
       {/* Mounted immediately (not after the loader) so the globe is already
           built beneath the loader and the wordmark has a real target. */}
-      <CinematicJourney phase={phase} />
+      {/* Inert until the loader is gone: it covers the page, so nothing
+          underneath should be focusable or read out by screen readers. */}
+      <div inert={phase !== "ready"}>
+        <CinematicJourney phase={phase} />
+      </div>
       <LandingLoader onComplete={onComplete} />
+      <VisitTracker enabled={phase === "ready"} />
     </main>
   );
 }

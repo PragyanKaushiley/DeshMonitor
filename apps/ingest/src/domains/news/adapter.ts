@@ -1,14 +1,14 @@
-import Parser from "rss-parser";
 import { fetchWithTimeout } from "@desh-monitor/utils";
 import { insertItems, type Database, type NewsItemInput, type SourceRecord } from "@desh-monitor/db";
 import type { SourceAdapter } from "../../core/types";
+import { createRssParser, type RssItem } from "./image";
 import { isValidRssItem } from "./validate";
 import { normalizeRssItem } from "./normalize";
 
 const USER_AGENT = "DeshMonitorBot/0.1 (+https://github.com/desh-monitor; ingestion bot)";
 
-export function createRssAdapter(db: Database): SourceAdapter<SourceRecord, Parser.Item, NewsItemInput> {
-  const parser = new Parser();
+export function createRssAdapter(db: Database): SourceAdapter<SourceRecord, RssItem, NewsItemInput> {
+  const parser = createRssParser();
 
   return {
     async fetch(source) {
