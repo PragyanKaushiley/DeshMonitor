@@ -89,14 +89,13 @@ jobs:
       group: ingest-${{ matrix.job }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: pnpm/setup@v3
         with:
-          node-version: 20
-          cache: pnpm
+          runtime: node@20
+          cache: true
+          install: false
 
       # Only the ingest app and the workspace packages it depends on.
       - run: pnpm install --frozen-lockfile --filter "@desh-monitor/ingest..."

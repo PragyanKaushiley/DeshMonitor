@@ -17,17 +17,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      # Version comes from "packageManager" in package.json.
-      - uses: pnpm/action-setup@v4
-
-      # Node 20 to match local development (wrangler and OpenNext are pinned
-      # to versions that support it).
-      - uses: actions/setup-node@v4
+      # pnpm (version from "packageManager") and Node in one step. Node 20
+      # matches local development: wrangler and OpenNext are pinned to
+      # versions that support it. Installs run explicitly below.
+      - uses: pnpm/setup@v3
         with:
-          node-version: 20
-          cache: pnpm
+          runtime: node@20
+          cache: true
+          install: false
 
       - run: pnpm install --frozen-lockfile
 
