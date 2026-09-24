@@ -67,3 +67,6 @@ export type {
   VisitorSessionRecord,
   VisitInput,
 } from "./repositories/sessions";
+export * as logsSchema from "./schema/logs";
+export { insertLogEntries, pruneLogEntries, countLogEntries, toLogEntryInput } from "./repositories/logs";
+export type { LogEntryInput } from "./repositories/logs";

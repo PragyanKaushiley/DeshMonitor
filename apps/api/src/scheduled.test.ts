@@ -1,20 +1,36 @@
 import { describe, expect, it, vi } from "vitest";
+import { createLogger, type LogEntry } from "@desh-monitor/logger";
 import { dispatchIngest, jobsDue, runScheduled } from "./scheduled";
 import type { Bindings } from "./types";
 
 const at = (iso: string) => new Date(iso);
 
 describe("jobsDue", () => {
-  it("runs news every hour", () => {
-    expect(jobsDue(at("2026-09-24T05:05:00Z"))).toEqual(["news"]);
+  it("runs only news in the 15-minute slots after the hour's first", () => {
+    expect(jobsDue(at("2026-09-24T05:20:00Z"))).toEqual(["news"]);
+    expect(jobsDue(at("2026-09-24T05:35:00Z"))).toEqual(["news"]);
+    expect(jobsDue(at("2026-09-24T05:50:00Z"))).toEqual(["news"]);
   });
 
-  it("adds forecast and air quality every third hour", () => {
-    expect(jobsDue(at("2026-09-24T06:05:00Z"))).toEqual(["news", "weather-forecast", "weather-air-quality"]);
+  it("adds forecast, air quality and marine in each hour's first slot", () => {
+    expect(jobsDue(at("2026-09-24T05:05:00Z"))).toEqual([
+      "news",
+      "weather-forecast",
+      "weather-air-quality",
+      "weather-marine",
+    ]);
   });
 
-  it("adds marine and flood once a day", () => {
-    expect(jobsDue(at("2026-09-24T01:05:00Z"))).toEqual(["news", "weather-marine", "weather-flood"]);
+  it("adds flood once a day", () => {
+    expect(jobsDue(at("2026-09-24T01:05:00Z"))).toContain("weather-flood");
+    expect(jobsDue(at("2026-09-24T02:05:00Z"))).not.toContain("weather-flood");
+    expect(jobsDue(at("2026-09-24T01:20:00Z"))).not.toContain("weather-flood");
+  });
+
+  it("prunes old logs once a day", () => {
+    expect(jobsDue(at("2026-09-24T00:05:00Z"))).toContain("logs-prune");
+    expect(jobsDue(at("2026-09-24T00:20:00Z"))).not.toContain("logs-prune");
+    expect(jobsDue(at("2026-09-24T12:05:00Z"))).not.toContain("logs-prune");
   });
 
   it("adds seasonal on Mondays and climate on the 1st", () => {
@@ -48,21 +64,25 @@ describe("dispatchIngest", () => {
 
 describe("runScheduled", () => {
   const env = { GITHUB_TOKEN: "t", GITHUB_REPO: "o/r" } as Bindings;
+  const lines: LogEntry[] = [];
+  const logger = createLogger({}, [(entry) => lines.push(entry)]);
 
   it("dispatches every due job, and fails the run if any dispatch fails", async () => {
     const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
       const { inputs } = JSON.parse(init?.body as string) as { inputs: { job: string } };
       return new Response(null, { status: inputs.job === "weather-forecast" ? 500 : 204 });
     });
-    await expect(runScheduled(Date.parse("2026-09-24T06:05:00Z"), env, fetchImpl as typeof fetch)).rejects.toThrow(
+    await expect(runScheduled(Date.parse("2026-09-24T06:05:00Z"), env, logger, fetchImpl as typeof fetch)).rejects.toThrow(
       /weather-forecast/,
     );
-    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    expect(lines.at(-1)).toMatchObject({ level: "error", message: "ingest dispatch failed", failed: [{ job: "weather-forecast" }] });
   });
 
   it("does nothing without a token", async () => {
     const fetchImpl = vi.fn();
-    await runScheduled(Date.now(), { GITHUB_REPO: "o/r" } as Bindings, fetchImpl);
+    await runScheduled(Date.now(), { GITHUB_REPO: "o/r" } as Bindings, logger, fetchImpl);
     expect(fetchImpl).not.toHaveBeenCalled();
+    expect(lines.at(-1)).toMatchObject({ level: "error", message: expect.stringContaining("GITHUB_TOKEN") });
   });
 });

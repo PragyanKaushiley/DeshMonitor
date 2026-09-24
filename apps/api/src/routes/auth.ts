@@ -11,7 +11,7 @@ import {
   type Database,
 } from "@desh-monitor/db";
 import { checkRateLimit, createRedis, deleteSession, getSession, newSessionToken, storeSession } from "@desh-monitor/redis";
-import type { Bindings } from "../types";
+import type { AppEnv } from "../types";
 import { clearSessionCookie, getSessionToken, getVisitorId, setSessionCookie } from "../lib/cookies";
 import { hashPassword, verifyPassword } from "../lib/password";
 import { getRequestMeta, sha256Hex } from "../lib/requestMeta";
@@ -29,7 +29,7 @@ function toPublicUser(user: { id: string; email: string }) {
 // request's IP/location), the active session in Redis, the cookie, and — if
 // this browser has an anonymous visitor id — links its earlier visits.
 async function startSession(
-  c: Context<{ Bindings: Bindings }>,
+  c: Context<AppEnv>,
   db: Database,
   redis: ReturnType<typeof createRedis>,
   userId: string,
@@ -51,7 +51,7 @@ async function startSession(
   if (visitorId) await linkVisitorToUser(db, visitorId, userId);
 }
 
-export const authRoutes = new Hono<{ Bindings: Bindings }>();
+export const authRoutes = new Hono<AppEnv>();
 
 authRoutes.post("/signup", async (c) => {
   const body = await c.req.json().catch(() => null);
@@ -68,6 +68,7 @@ authRoutes.post("/signup", async (c) => {
 
   const passwordHash = await hashPassword(parsed.data.password);
   const user = await createUser(db, { email: parsed.data.email, passwordHash });
+  c.get("logger").info("user signed up", { userId: user.id });
 
   const redis = createRedis({ url: c.env.UPSTASH_REDIS_REST_URL, token: c.env.UPSTASH_REDIS_REST_TOKEN });
   await startSession(c, db, redis, user.id);
@@ -87,6 +88,7 @@ authRoutes.post("/login", async (c) => {
   const clientIp = c.req.header("cf-connecting-ip") ?? "unknown";
   const allowed = await checkRateLimit(redis, `login:${parsed.data.email}:${clientIp}`, 10, 15 * 60);
   if (!allowed) {
+    c.get("logger").warn("login rate limit hit");
     return c.json({ error: "rate_limited" }, 429);
   }
 
@@ -99,11 +101,14 @@ authRoutes.post("/login", async (c) => {
   const dummyHash = "pbkdf2-sha256$100000$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
   const valid = await verifyPassword(parsed.data.password, user?.passwordHash ?? dummyHash);
 
+  // Never log the email or password; whether the account exists is enough.
   if (!user || !valid) {
+    c.get("logger").warn("login failed", { reason: user ? "wrong_password" : "unknown_account" });
     return c.json({ error: "invalid_credentials" }, 401);
   }
 
   await startSession(c, db, redis, user.id);
+  c.get("logger").info("user logged in", { userId: user.id });
 
   return c.json({ user: toPublicUser(user) });
 });

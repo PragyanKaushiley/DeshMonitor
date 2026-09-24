@@ -1,21 +1,17 @@
-import { createDb, getLocationsByTag } from "@desh-monitor/db";
+import { getLocationsByTag } from "@desh-monitor/db";
+import { runScript } from "../../../core/logging";
 import { runWeatherIngestion } from "../runWeather";
 import { toWeatherSources } from "../types";
 import { createMarineAdapter } from "./adapter";
 
-async function main() {
-  const db = createDb();
+runScript({ task: "weather marine ingestion", domain: "weather" }, async ({ db, logger }) => {
   const locations = await getLocationsByTag(db, "coastal");
 
   await runWeatherIngestion({
     db,
+    logger,
     dataType: "marine",
     sources: toWeatherSources(locations, "marine"),
     makeAdapter: createMarineAdapter,
   });
-}
-
-main().catch((error) => {
-  console.error("weather marine ingestion run crashed:", error);
-  process.exitCode = 1;
 });

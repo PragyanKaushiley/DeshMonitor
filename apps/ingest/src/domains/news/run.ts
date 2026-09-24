@@ -1,11 +1,9 @@
-import { createDb, getActiveSources, recordFetch } from "@desh-monitor/db";
-import { createLogger } from "@desh-monitor/logger";
+import { getActiveSources, recordFetch } from "@desh-monitor/db";
+import { runScript } from "../../core/logging";
 import { runIngestion } from "../../core/runner";
 import { createRssAdapter } from "./adapter";
 
-async function main() {
-  const logger = createLogger({ app: "ingest", domain: "news" });
-  const db = createDb();
+runScript({ task: "news ingestion", domain: "news" }, async ({ db, logger }) => {
   const sources = await getActiveSources(db);
 
   if (sources.length === 0) {
@@ -51,9 +49,4 @@ async function main() {
   if (results.length > 0 && failed === results.length) {
     process.exitCode = 1;
   }
-}
-
-main().catch((error) => {
-  console.error("news ingestion run crashed:", error);
-  process.exitCode = 1;
 });

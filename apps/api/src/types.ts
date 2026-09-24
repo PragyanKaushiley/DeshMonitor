@@ -1,3 +1,5 @@
+import type { Logger } from "@desh-monitor/logger";
+
 export interface Bindings {
   DATABASE_URL: string;
   UPSTASH_REDIS_REST_URL: string;
@@ -9,3 +11,10 @@ export interface Bindings {
   GITHUB_REPO?: string;
   GITHUB_TOKEN?: string;
 }
+
+// Per-request values set by middleware (see lib/logging.ts).
+export interface Variables {
+  logger: Logger;
+}
+
+export type AppEnv = { Bindings: Bindings; Variables: Variables };

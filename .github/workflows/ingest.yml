@@ -2,9 +2,9 @@ name: Ingest
 
 # Started on time by the Cloudflare cron (apps/api src/scheduled.ts) through
 # workflow_dispatch, or by hand from the Actions tab. The schedule below is a
-# fallback 30 minutes after each cron slot: it runs only the jobs the cron
-# hasn't already dispatched in the last 45 minutes. Keep it in step with
-# jobsDue() in apps/api.
+# fallback a little after each cron slot: it runs only the jobs the cron
+# hasn't already dispatched recently (12 minutes for news, 40 for weather).
+# Keep it in step with jobsDue() in apps/api.
 run-name: "${{ github.event_name == 'workflow_dispatch' && format('ingest: {0}', inputs.job) || format('ingest (fallback) {0}', github.event.schedule) }}"
 
 on:
@@ -22,12 +22,14 @@ on:
           - weather-flood
           - weather-seasonal
           - weather-climate
+          - logs-prune
   schedule:
-    - cron: "35 * * * *" # news
-    - cron: "35 */3 * * *" # weather-forecast, weather-air-quality
-    - cron: "35 1 * * *" # weather-marine, weather-flood
-    - cron: "35 2 * * 1" # weather-seasonal
-    - cron: "35 3 1 * *" # weather-climate
+    - cron: "12,27,42,57 * * * *" # news (cron: every 15 min from :05)
+    - cron: "40 * * * *" # weather-forecast, weather-air-quality, weather-marine (cron: hourly at :05)
+    - cron: "40 1 * * *" # weather-flood (cron: 01:05 daily)
+    - cron: "40 2 * * 1" # weather-seasonal (cron: Mondays 02:05)
+    - cron: "40 3 1 * *" # weather-climate (cron: the 1st, 03:05)
+    - cron: "40 0 * * *" # logs-prune (cron: 00:05 daily)
 
 permissions:
   contents: read
@@ -52,16 +54,19 @@ jobs:
             exit 0
           fi
 
+          # Jobs for this fallback slot, and how far back a dispatched run of
+          # the same job counts as "already ran".
           case "$SCHEDULE" in
-            "35 * * * *") due="news" ;;
-            "35 */3 * * *") due="weather-forecast weather-air-quality" ;;
-            "35 1 * * *") due="weather-marine weather-flood" ;;
-            "35 2 * * 1") due="weather-seasonal" ;;
-            "35 3 1 * *") due="weather-climate" ;;
+            "12,27,42,57 * * * *") due="news"; window=12 ;;
+            "40 * * * *") due="weather-forecast weather-air-quality weather-marine"; window=40 ;;
+            "40 1 * * *") due="weather-flood"; window=40 ;;
+            "40 2 * * 1") due="weather-seasonal"; window=40 ;;
+            "40 3 1 * *") due="weather-climate"; window=40 ;;
+            "40 0 * * *") due="logs-prune"; window=40 ;;
             *) echo "::error::unknown schedule '$SCHEDULE'"; exit 1 ;;
           esac
 
-          since=$(date -u -d '45 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+          since=$(date -u -d "$window minutes ago" +%Y-%m-%dT%H:%M:%SZ)
           recent=$(gh run list -R "$GITHUB_REPOSITORY" --workflow ingest.yml --event workflow_dispatch \
             --created ">=$since" --limit 100 --json displayTitle --jq '.[].displayTitle')
 
@@ -100,7 +105,12 @@ jobs:
       # Only the ingest app and the workspace packages it depends on.
       - run: pnpm install --frozen-lockfile --filter "@desh-monitor/ingest..."
 
-      - run: pnpm --filter @desh-monitor/ingest run "fetch:${JOB}"
+      # Ingest jobs are the package's fetch:<job> scripts; logs-prune is
+      # its maintenance script.
+      - run: |
+          script="fetch:${JOB}"
+          [ "$JOB" = "logs-prune" ] && script="prune:logs"
+          pnpm --filter @desh-monitor/ingest run "$script"
         env:
           JOB: ${{ matrix.job }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

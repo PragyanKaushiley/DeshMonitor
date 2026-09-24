@@ -17,7 +17,8 @@
     "fetch:weather-seasonal": "tsx src/domains/weather/seasonal/run.ts",
     "fetch:weather-marine": "tsx src/domains/weather/marine/run.ts",
     "fetch:weather-flood": "tsx src/domains/weather/flood/run.ts",
-    "fetch:weather-climate": "tsx src/domains/weather/climate/run.ts"
+    "fetch:weather-climate": "tsx src/domains/weather/climate/run.ts",
+    "prune:logs": "tsx src/maintenance/pruneLogs.ts"
   },
   "dependencies": {
     "@desh-monitor/config": "workspace:*",

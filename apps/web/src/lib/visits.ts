@@ -1,4 +1,6 @@
+import { errorFields } from "@desh-monitor/logger";
 import { CONSENT_VERSION, getConsent } from "./consent";
+import { log } from "./log";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const UTM_KEYS = ["source", "medium", "campaign", "term", "content"] as const;
@@ -40,7 +42,11 @@ export function recordVisit(): void {
       consentVersion: CONSENT_VERSION,
       ...(Object.keys(utm).length > 0 ? { utm } : {}),
     }),
-  }).catch(() => {
-    // Analytics must never affect the page.
-  });
+  }).then(
+    (res) => {
+      if (!res.ok) log.warn("visit recording failed", { status: res.status, path });
+    },
+    // Analytics must never affect the page — only note that it failed.
+    (error: unknown) => log.warn("visit recording failed", { ...errorFields(error), path }),
+  );
 }

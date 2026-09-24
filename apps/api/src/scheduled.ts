@@ -1,3 +1,4 @@
+import { errorFields, type Logger } from "@desh-monitor/logger";
 import type { Bindings } from "./types";
 
 // Cloudflare cron → GitHub Actions. Ingestion itself runs in the "Ingest"
@@ -14,6 +15,7 @@ export const INGEST_JOBS = [
   "weather-flood",
   "weather-seasonal",
   "weather-climate",
+  "logs-prune",
 ] as const;
 
 export type IngestJob = (typeof INGEST_JOBS)[number];
@@ -21,15 +23,19 @@ export type IngestJob = (typeof INGEST_JOBS)[number];
 const INGEST_WORKFLOW = "ingest.yml";
 const INGEST_REF = "main";
 
-// The cron runs hourly; which jobs are due at that hour (UTC). Cadences
-// follow how often each source actually changes: news hourly, forecasts
-// and air quality every 3 hours, marine and flood daily, seasonal weekly,
-// climate projections (a fixed model dataset) monthly.
+// The cron fires every 15 minutes (:05, :20, :35, :50 UTC); which jobs are
+// due at that slot. Cadences follow how often each source changes and what
+// storage and Open-Meteo's free quota allow: news every 15 minutes; forecast,
+// air quality and marine hourly; flood daily (GloFAS publishes once a day);
+// seasonal weekly and climate projections (a fixed model dataset) monthly,
+// both of which are heavy requests. Old logs are pruned daily.
 export function jobsDue(at: Date): IngestJob[] {
-  const hour = at.getUTCHours();
   const jobs: IngestJob[] = ["news"];
-  if (hour % 3 === 0) jobs.push("weather-forecast", "weather-air-quality");
-  if (hour === 1) jobs.push("weather-marine", "weather-flood");
+  if (at.getUTCMinutes() >= 15) return jobs; // only the hour's first slot runs weather
+  const hour = at.getUTCHours();
+  jobs.push("weather-forecast", "weather-air-quality", "weather-marine");
+  if (hour === 0) jobs.push("logs-prune");
+  if (hour === 1) jobs.push("weather-flood");
   if (hour === 2 && at.getUTCDay() === 1) jobs.push("weather-seasonal");
   if (hour === 3 && at.getUTCDate() === 1) jobs.push("weather-climate");
   return jobs;
@@ -56,16 +62,24 @@ export async function dispatchIngest(
   }
 }
 
-export async function runScheduled(scheduledTime: number, env: Bindings, fetchImpl: typeof fetch = fetch): Promise<void> {
+export async function runScheduled(
+  scheduledTime: number,
+  env: Bindings,
+  logger: Logger,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
   if (!env.GITHUB_TOKEN || !env.GITHUB_REPO) {
-    console.error(JSON.stringify({ level: "error", message: "ingest dispatch skipped: GITHUB_TOKEN or GITHUB_REPO not set" }));
+    logger.error("ingest dispatch skipped: GITHUB_TOKEN or GITHUB_REPO not set");
     return;
   }
   const github = { GITHUB_TOKEN: env.GITHUB_TOKEN, GITHUB_REPO: env.GITHUB_REPO };
   const jobs = jobsDue(new Date(scheduledTime));
   const results = await Promise.allSettled(jobs.map((job) => dispatchIngest(github, job, fetchImpl)));
-  const failed = results.flatMap((r) => (r.status === "rejected" ? [String(r.reason)] : []));
-  console.log(JSON.stringify({ level: failed.length ? "error" : "info", message: "ingest dispatch", jobs, failed }));
-  // Failing the invocation marks it as an error in Cloudflare's cron history.
-  if (failed.length) throw new Error(failed.join("; "));
+  const failed = results.flatMap((r, i) => (r.status === "rejected" ? [{ job: jobs[i], reason: r.reason as unknown }] : []));
+  if (failed.length) {
+    logger.error("ingest dispatch failed", { jobs, failed: failed.map((f) => ({ job: f.job, ...errorFields(f.reason) })) });
+    // Failing the invocation marks it as an error in Cloudflare's cron history.
+    throw new Error(failed.map((f) => (f.reason instanceof Error ? f.reason.message : String(f.reason))).join("; "));
+  }
+  logger.info("ingest jobs dispatched", { jobs });
 }

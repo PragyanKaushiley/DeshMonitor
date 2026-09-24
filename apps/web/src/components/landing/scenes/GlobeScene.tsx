@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { errorFields } from "@desh-monitor/logger";
 import { useScrolledPast } from "@/lib/landing/useScrolledPast";
+import { log } from "@/lib/log";
 import { ChevronDown } from "lucide-react";
 // `three` / `three-globe` are dynamically imported inside the effect:
 // three-globe touches `window` at module scope (crashes SSR), and wrapping
@@ -392,10 +394,11 @@ export function GlobeScene({
       };
     }
 
-    setup().catch(() => {
+    setup().catch((error: unknown) => {
       // WebGL unavailable (GPU blocklisted, hardware acceleration off, …):
       // show the static poster instead of an empty hero, and never hold the
       // loader hostage.
+      log.warn("WebGL globe unavailable; showing the static poster", errorFields(error));
       if (!cancelled) setWebglFailed(true);
       markGlobeReady();
     });

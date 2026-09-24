@@ -2,6 +2,8 @@
 // React state on purpose: a state change here re-renders the whole landing
 // tree, which landed right on the first frame of the loader's exit animation.
 
+import { log } from "@/lib/log";
+
 // Lets the loader wait for the WebGL globe (dynamic three import + scene
 // build + first frame), not just the fetched assets. The timeout guarantees
 // a WebGL failure can never trap the page behind the loader.
@@ -27,6 +29,7 @@ export function whenGlobeReady(): Promise<void> {
   return new Promise((resolve) => {
     const timeoutId = window.setTimeout(() => {
       readyListeners.delete(done);
+      log.warn("globe not ready in time; the loader continued without it", { timeoutMs: SAFETY_TIMEOUT_MS });
       resolve();
     }, SAFETY_TIMEOUT_MS);
     function done() {

@@ -1,17 +1,18 @@
 import { completeFetch, type Database } from "@desh-monitor/db";
-import { createLogger } from "@desh-monitor/logger";
+import type { Logger } from "@desh-monitor/logger";
 import { runIngestion } from "../../core/runner";
 import type { SourceAdapter } from "../../core/types";
 import type { WeatherDataType, WeatherSource } from "./types";
 
 export async function runWeatherIngestion<TRawItem, TNormalized>(params: {
   db: Database;
+  logger: Logger;
   dataType: WeatherDataType;
   sources: WeatherSource[];
   makeAdapter: (db: Database) => SourceAdapter<WeatherSource, TRawItem, TNormalized>;
   concurrency?: number;
 }): Promise<void> {
-  const logger = createLogger({ app: "ingest", domain: "weather", dataType: params.dataType });
+  const logger = params.logger.child({ dataType: params.dataType });
   const db = params.db;
 
   if (params.sources.length === 0) {

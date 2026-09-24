@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { createDb, getOrCreateVisitor, linkVisitorToUser, recordVisit } from "@desh-monitor/db";
 import { checkRateLimit, createRedis, getSession } from "@desh-monitor/redis";
-import type { Bindings } from "../types";
+import type { AppEnv } from "../types";
 import { getSessionToken, getVisitorId, setVisitorCookie } from "../lib/cookies";
 import { getRequestMeta } from "../lib/requestMeta";
 
@@ -28,7 +28,7 @@ const VISITS_PER_MINUTE_PER_IP = 60;
 // Public: records a landing-page visit. The web app only calls this after the
 // visitor has accepted the consent banner, and it sends the consent version,
 // which is stored on the visitor.
-export const visitRoutes = new Hono<{ Bindings: Bindings }>();
+export const visitRoutes = new Hono<AppEnv>();
 
 visitRoutes.post("/", async (c) => {
   const body = await c.req.json().catch(() => null);
@@ -41,6 +41,7 @@ visitRoutes.post("/", async (c) => {
   const redis = createRedis({ url: c.env.UPSTASH_REDIS_REST_URL, token: c.env.UPSTASH_REDIS_REST_TOKEN });
   const allowed = await checkRateLimit(redis, `visits:${context.ip ?? "unknown"}`, VISITS_PER_MINUTE_PER_IP, 60);
   if (!allowed) {
+    c.get("logger").warn("visit rate limit hit");
     return c.json({ error: "rate_limited" }, 429);
   }
 

@@ -1,5 +1,5 @@
-import { createDb, listItemsWithoutImage, setItemImageUrl } from "@desh-monitor/db";
-import { createLogger } from "@desh-monitor/logger";
+import { listItemsWithoutImage, setItemImageUrl } from "@desh-monitor/db";
+import { runScript } from "../../core/logging";
 import { extractImageUrl, type RssItem } from "./image";
 
 // Reprocesses stored raw payloads (no refetch) to fill image_url on items
@@ -8,9 +8,7 @@ import { extractImageUrl, type RssItem } from "./image";
 // finds image enclosures and <img> tags in descriptions.
 const PAGE_SIZE = 500;
 
-async function main() {
-  const logger = createLogger({ component: "news-image-backfill" });
-  const db = createDb();
+runScript({ task: "news image backfill", domain: "news" }, async ({ db, logger }) => {
   let afterId: string | null = null;
   let scanned = 0;
   let updated = 0;
@@ -30,9 +28,4 @@ async function main() {
   }
 
   logger.info("news image backfill finished", { scanned, updated });
-}
-
-main().catch((error) => {
-  console.error("news image backfill failed:", error);
-  process.exitCode = 1;
 });

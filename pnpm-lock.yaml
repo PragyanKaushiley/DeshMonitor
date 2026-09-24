@@ -178,6 +178,9 @@ importers:
       '@desh-monitor/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@desh-monitor/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
       '@desh-monitor/redis':
         specifier: workspace:*
         version: link:../../packages/redis
@@ -194,6 +197,9 @@ importers:
       '@desh-monitor/config':
         specifier: workspace:*
         version: link:../../packages/config
+      drizzle-orm:
+        specifier: ^0.38.4
+        version: 0.38.4(@cloudflare/workers-types@4.20260702.1)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(@types/react@19.3.0)(react@19.2.8)
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@20.19.43)(lightningcss@1.32.0)(supports-color@10.2.2)(terser@5.16.9)
@@ -231,6 +237,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@desh-monitor/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

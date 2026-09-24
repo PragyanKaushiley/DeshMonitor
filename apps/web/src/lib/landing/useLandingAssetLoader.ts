@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { criticalAssets, progressiveAssets } from "./assets";
 import { fontsReady, loadAssets } from "./assetLoader";
+import { log } from "@/lib/log";
 
 export interface LandingAssetLoaderState {
   loaded: number;
@@ -61,6 +62,8 @@ export function useLandingAssetLoader(): LandingAssetLoaderState {
           step(result.src);
         },
       });
+
+      if (failed.length > 0) log.warn("landing assets failed to load", { failed });
 
       if (!cancelled) {
         setState({
