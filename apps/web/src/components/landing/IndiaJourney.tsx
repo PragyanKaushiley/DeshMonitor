@@ -190,12 +190,14 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
       className={
         rm
           ? "relative flex w-full justify-center md:w-[66%] md:px-10 xl:w-[62%]"
-          : "pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 md:right-auto md:w-[66%] md:px-10 xl:w-[62%]"
+          : "pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 max-md:pt-20 max-md:pb-6 md:right-auto md:w-[66%] md:px-10 xl:w-[62%]"
       }
     >
+      {/* Mobile: four rows fit under the nav — the stage height minus the
+          nav, padding and gaps (≈140px), split four ways, up to 8.75rem. */}
       <BentoGrid
         ref={gridRef}
-        className="max-w-md auto-rows-[8.75rem] grid-cols-2 gap-3 md:max-w-3xl md:auto-rows-[11rem] md:grid-cols-3 md:gap-4"
+        className="max-w-md auto-rows-[clamp(6.5rem,calc((var(--stage-h,100svh)-140px)/4),8.75rem)] grid-cols-2 gap-3 md:max-w-3xl md:auto-rows-[11rem] md:grid-cols-3 md:gap-4"
       >
         {CATEGORIES.map(({ title, description, Icon, Art, span }, i) => [
           i === 1 ? indiaTile : null,
@@ -225,13 +227,16 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
     >
       <div
         ref={revealRef}
-        className={`flex flex-col items-center justify-center gap-5 px-6 text-center ${rm ? "relative min-h-[var(--stage-h,100svh)] py-16" : "absolute inset-0 pb-12"}`}
+        className={`flex flex-col items-center justify-center gap-5 px-6 text-center ${rm ? "relative min-h-[var(--stage-h,100svh)] py-16" : "absolute inset-0 pb-12 max-md:pt-20 max-md:pb-16 max-md:gap-4"}`}
       >
         {/* Width-based size: vh sizing made both silhouettes resize whenever
-            the window height changed (e.g. docking devtools). */}
+            the window height changed (e.g. docking devtools). On mobile it is
+            also capped by --stage-h (fixed per width, so Safari's collapsing
+            toolbars don't resize it) minus the nav, copy, CTA and hint, so the
+            reveal fits short screens instead of running under the nav. */}
         <div
           ref={mapRef}
-          className="pointer-events-none relative z-20 size-[min(76vw,320px)] opacity-90 dark:invert md:size-[clamp(220px,20vw,300px)]"
+          className="pointer-events-none relative z-20 size-[clamp(120px,calc(var(--stage-h,100svh)-490px),min(76vw,320px))] opacity-90 dark:invert md:size-[clamp(220px,20vw,300px)]"
         >
           {/* India's southern tip sits 36.2% across this square box (the
               outline SVG is letterboxed and the tip is west of centre);
