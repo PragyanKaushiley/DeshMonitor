@@ -147,6 +147,11 @@ export async function linkVisitorToUser(db: Database, visitorId: string, userId:
   await db.update(visitors).set({ userId }).where(eq(visitors.id, visitorId));
 }
 
+// Removes the visitor and, by cascade, all of its visit sessions.
+export async function deleteVisitor(db: Database, id: string): Promise<void> {
+  await db.delete(visitors).where(eq(visitors.id, id));
+}
+
 export interface VisitInput {
   visitorId: string;
   landingPath: string;

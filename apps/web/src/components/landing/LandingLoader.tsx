@@ -152,7 +152,7 @@ export function LandingLoader({ onComplete }: { onComplete: () => void }) {
     };
 
     const elapsed = performance.now() - (mountedAtRef.current ?? performance.now());
-    const remaining = prefersReducedMotion ? 0 : Math.max(0, minDisplayMs - elapsed);
+    const remaining = Math.max(0, minDisplayMs - elapsed);
     const timeoutId = window.setTimeout(beginExit, remaining);
     return () => window.clearTimeout(timeoutId);
   }, [isComplete, globeReady, onComplete, prefersReducedMotion, minDisplayMs]);
@@ -160,7 +160,7 @@ export function LandingLoader({ onComplete }: { onComplete: () => void }) {
   if (state === "active") return null;
 
   const realShare = progress * ASSET_SHARE + (globeReady ? 1 - ASSET_SHARE : 0);
-  const shownShare = prefersReducedMotion || state !== "loading" ? realShare : Math.min(realShare, timeShare);
+  const shownShare = state !== "loading" ? realShare : Math.min(realShare, timeShare);
   const percent = Math.round(shownShare * 100);
   const hasCriticalFailure = failed.length > 0 && isComplete;
 
@@ -176,7 +176,7 @@ export function LandingLoader({ onComplete }: { onComplete: () => void }) {
       </span>
 
       <div ref={bgRef} aria-hidden className="absolute inset-0 overflow-hidden bg-background">
-        {!prefersReducedMotion && <Meteors number={40} />}
+        <Meteors number={40} still={prefersReducedMotion} />
       </div>
 
       <div aria-hidden className="relative flex flex-col items-center gap-6">

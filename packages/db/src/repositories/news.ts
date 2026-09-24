@@ -76,15 +76,33 @@ export async function insertItems(
 ): Promise<{ insertedCount: number; duplicateCount: number }> {
   if (rows.length === 0) return { insertedCount: 0, duplicateCount: 0 };
 
-  const inserted = await db
-    .insert(items)
-    .values(rows)
-    .onConflictDoNothing({ target: [items.sourceId, items.externalId] })
-    .returning({ id: items.id });
+  // A feed can repeat an item; Postgres rejects an upsert that touches the
+  // same row twice, so keep the first occurrence of each key.
+  const seen = new Set<string>();
+  const uniqueRows = rows.filter((row) => {
+    const key = `${row.sourceId}\u0000${row.externalId}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
+  // Already-stored items are left as they are, except that a missing cover
+  // image is filled in when the feed now provides one. `xmax = 0` is true
+  // only for freshly inserted rows, which tells inserts and fills apart.
+  const written = await db
+    .insert(items)
+    .values(uniqueRows)
+    .onConflictDoUpdate({
+      target: [items.sourceId, items.externalId],
+      set: { imageUrl: sql`excluded.image_url` },
+      setWhere: sql`${items.imageUrl} is null and excluded.image_url is not null`,
+    })
+    .returning({ inserted: sql<boolean>`xmax = 0` });
+
+  const insertedCount = written.filter((row) => row.inserted).length;
   return {
-    insertedCount: inserted.length,
-    duplicateCount: rows.length - inserted.length,
+    insertedCount,
+    duplicateCount: rows.length - insertedCount,
   };
 }
 

@@ -18,9 +18,9 @@ export function SpaceParticles({ className = "" }: { className?: string }) {
   return (
     <Particles
       className={className}
-      quantity={140}
-      ease={80}
-      size={0.5}
+      quantity={300}
+      ease={100}
+      size={0.8}
       color={resolvedTheme === "light" ? "#0a0a0a" : "#ffffff"}
     />
   );

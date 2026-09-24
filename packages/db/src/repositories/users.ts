@@ -39,3 +39,9 @@ export async function getUserById(db: Database, id: string): Promise<UserRecord 
   const [row] = await db.select().from(users).where(eq(users.id, id)).limit(1);
   return row ?? null;
 }
+
+// Removes the account; its login-session records go with it (cascade) and
+// any linked visitor is unlinked.
+export async function deleteUser(db: Database, id: string): Promise<void> {
+  await db.delete(users).where(eq(users.id, id));
+}

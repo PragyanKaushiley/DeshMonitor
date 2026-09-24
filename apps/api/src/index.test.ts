@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { loadDotenv } from "@desh-monitor/config";
+import { createDb, deleteUser, getUserByEmail } from "@desh-monitor/db";
 import app from "./index";
 import type { Bindings } from "./types";
 
@@ -31,8 +32,24 @@ function extractSessionCookie(res: Response): string {
 }
 
 describe.skipIf(!hasCredentials)("apps/api auth routes (integration)", () => {
-  it("signup -> me -> logout -> me round trip", async () => {
+  // Accounts signed up here are deleted afterwards (their login-session
+  // records go with them).
+  const usedEmails: string[] = [];
+  function testEmail() {
     const email = `test-${randomUUID()}@example.com`;
+    usedEmails.push(email);
+    return email;
+  }
+  afterAll(async () => {
+    const db = createDb(testEnv().DATABASE_URL);
+    for (const email of usedEmails) {
+      const user = await getUserByEmail(db, email);
+      if (user) await deleteUser(db, user.id);
+    }
+  });
+
+  it("signup -> me -> logout -> me round trip", async () => {
+    const email = testEmail();
     const password = "correct horse battery staple";
 
     const signupRes = await app.request(
@@ -82,7 +99,7 @@ describe.skipIf(!hasCredentials)("apps/api auth routes (integration)", () => {
   });
 
   it("rejects signup with an already-used email", async () => {
-    const email = `test-${randomUUID()}@example.com`;
+    const email = testEmail();
     const password = "correct horse battery staple";
 
     await app.request(
@@ -108,7 +125,7 @@ describe.skipIf(!hasCredentials)("apps/api auth routes (integration)", () => {
   });
 
   it("rejects login with a wrong password", async () => {
-    const email = `test-${randomUUID()}@example.com`;
+    const email = testEmail();
     await app.request(
       "/auth/signup",
       {

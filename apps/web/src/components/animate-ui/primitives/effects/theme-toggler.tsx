@@ -91,7 +91,10 @@ function ThemeToggler({
         return;
       }
 
-      if (!document.startViewTransition) {
+      // The circular reveal sweeps the whole screen, so it is skipped for
+      // visitors who ask for reduced motion: the theme just switches.
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!document.startViewTransition || reduceMotion) {
         flushSync(() => {
           setPreview({ effective: theme, resolved });
         });

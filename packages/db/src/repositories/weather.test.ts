@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { inArray } from "drizzle-orm";
+import { afterAll, describe, expect, it } from "vitest";
 import { loadDotenv } from "@desh-monitor/config";
 import { createDb } from "../client";
+import { climateProjections, fetches, forecasts, locations } from "../schema/rawWeather";
 import {
   completeFetch,
   getLocationsByTag,
@@ -15,6 +17,19 @@ loadDotenv();
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 
 describe.skipIf(!hasDatabase)("weather repository (integration)", () => {
+  const createdLocationIds: string[] = [];
+
+  // Test locations are active, so leaving them behind would make real
+  // weather runs fetch them.
+  afterAll(async () => {
+    if (createdLocationIds.length === 0) return;
+    const db = createDb();
+    await db.delete(forecasts).where(inArray(forecasts.locationId, createdLocationIds));
+    await db.delete(climateProjections).where(inArray(climateProjections.locationId, createdLocationIds));
+    await db.delete(fetches).where(inArray(fetches.locationId, createdLocationIds));
+    await db.delete(locations).where(inArray(locations.id, createdLocationIds));
+  });
+
   it("upserts a location, tags it, and finds it by tag", async () => {
     const db = createDb();
     const slug = `test-location-${randomUUID()}`;
@@ -24,6 +39,7 @@ describe.skipIf(!hasDatabase)("weather repository (integration)", () => {
     ]);
     expect(location).toBeDefined();
     if (!location) throw new Error("expected location to be created");
+    createdLocationIds.push(location.id);
 
     const coastal = await getLocationsByTag(db, "coastal");
     expect(coastal.some((l) => l.id === location.id)).toBe(true);
@@ -42,6 +58,7 @@ describe.skipIf(!hasDatabase)("weather repository (integration)", () => {
       { slug, name: "Test Location", region: "Test Region", latitude: 1, longitude: 2, tags: ["major_city"] },
     ]);
     if (!location) throw new Error("expected location to be created");
+    createdLocationIds.push(location.id);
 
     const fetchId = await startFetch(db, { locationId: location.id, dataType: "forecast", startedAt: new Date() });
     expect(typeof fetchId).toBe("string");
@@ -90,6 +107,7 @@ describe.skipIf(!hasDatabase)("weather repository (integration)", () => {
       { slug, name: "Test Location", region: "Test Region", latitude: 1, longitude: 2, tags: ["capital"] },
     ]);
     if (!location) throw new Error("expected location to be created");
+    createdLocationIds.push(location.id);
 
     const first = await upsertClimateProjectionDays(db, [
       { locationId: location.id, model: "TEST_MODEL", date: "2020-06-01", temperatureMaxC: 30 },

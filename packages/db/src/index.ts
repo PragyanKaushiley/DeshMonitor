@@ -45,7 +45,7 @@ export type {
   ClimateProjectionDayInput,
 } from "./repositories/weather";
 export * as appSchema from "./schema/app";
-export { createUser, getUserByEmail, getUserById } from "./repositories/users";
+export { createUser, getUserByEmail, getUserById, deleteUser } from "./repositories/users";
 export type { UserRecord, CreateUserInput } from "./repositories/users";
 export {
   VISIT_IDLE_WINDOW_MS,
@@ -56,6 +56,7 @@ export {
   getVisitor,
   getOrCreateVisitor,
   linkVisitorToUser,
+  deleteVisitor,
   recordVisit,
 } from "./repositories/sessions";
 export type {

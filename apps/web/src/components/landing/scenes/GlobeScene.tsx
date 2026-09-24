@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { useScrolledPast } from "@/lib/landing/useScrolledPast";
 import { ChevronDown } from "lucide-react";
 // `three` / `three-globe` are dynamically imported inside the effect:
 // three-globe touches `window` at module scope (crashes SSR), and wrapping
@@ -106,9 +107,12 @@ export function GlobeScene({
   const taglineRef = useRef<HTMLSpanElement>(null);
   const [webglFailed, setWebglFailed] = useState(false);
   const [heroOnScreen, setHeroOnScreen] = useState(true);
+  const hintScrolledAway = useScrolledPast(sectionRef, reducedMotion);
 
   useEffect(() => {
     if (reducedMotion) {
+      // No journey to narrate: the nav shows where the static hero points.
+      onStatusChange?.(INDIA_COORDS_LABEL);
       markGlobeReady();
       return;
     }
@@ -400,6 +404,10 @@ export function GlobeScene({
       cancelled = true;
       st.kill();
       disposeAll();
+      // The section itself outlives this effect (e.g. when reduced motion is
+      // switched on mid-page), so drop the scroll-driven fade it was given.
+      section.style.opacity = "";
+      section.style.pointerEvents = "";
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reducedMotion]);
@@ -434,19 +442,42 @@ export function GlobeScene({
   }, [ready, reducedMotion]);
 
   if (reducedMotion) {
+    // Static version of the hero's settled state: globe on the left, brand
+    // and tagline on the right (stacked on mobile), everything visible.
+    // One full screen, like every reduced-motion screen (see IndiaJourney).
+    // pb leaves room for the scroll hint.
     return (
       <section
         ref={sectionRef}
         aria-label="Globe: India"
-        className="relative flex h-[var(--stage-h,100svh)] w-full flex-col items-center justify-center gap-6 bg-background"
+        className="relative flex min-h-[var(--stage-h,100svh)] w-full flex-col items-center justify-center gap-8 bg-background px-6 pt-20 pb-12 md:flex-row md:gap-16 md:px-12"
       >
-        <div className="relative size-[min(50vh,80vw)] dark:invert">
-          <Image src="/landing/globe/poster.webp" alt="A stylized globe centered on India" fill className="object-contain" priority />
+        <div className="relative size-[min(72vw,44svh)] shrink-0 dark:invert md:size-[min(40vw,68svh)]">
+          <Image
+            src="/landing/globe/poster.webp"
+            alt="A stylized globe centered on India"
+            fill
+            sizes="(min-width: 768px) min(40vw, 68svh), min(72vw, 44svh)"
+            className="object-contain"
+            priority
+          />
         </div>
-        <h1 data-hero-brand className="inline-block font-display text-4xl text-foreground sm:text-6xl">
-          <Desh explain /> Monitor
-        </h1>
-        <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground">{INDIA_COORDS_LABEL}</p>
+        <div className="flex flex-col items-center text-center md:items-start md:text-left">
+          <h1 data-hero-brand className="inline-block whitespace-nowrap font-display text-4xl text-foreground sm:text-5xl lg:text-7xl">
+            <Desh explain /> Monitor
+          </h1>
+          <p className="mt-4 max-w-md font-display text-lg text-muted-foreground sm:text-xl">
+            <span className="block">India is constantly changing.</span>
+            <span className="block">This is where you watch it happen.</span>
+          </p>
+        </div>
+        {/* No fade to scrub here, so it is simply dropped once scrolling starts. */}
+        {!hintScrolledAway && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-6 flex flex-col items-center gap-1 text-muted-foreground">
+            <span className="font-mono text-[11px] tracking-[0.3em]">SCROLL</span>
+            <ChevronDown className="size-4" aria-hidden />
+          </div>
+        )}
       </section>
     );
   }
@@ -466,7 +497,7 @@ export function GlobeScene({
       {webglFailed && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="relative size-[min(80vw,560px)] opacity-90 dark:invert">
-            <Image src="/landing/globe/poster.webp" alt="A stylized globe centered on India" fill className="object-contain" priority />
+            <Image src="/landing/globe/poster.webp" alt="A stylized globe centered on India" fill sizes="min(80vw, 560px)" className="object-contain" priority />
           </div>
         </div>
       )}

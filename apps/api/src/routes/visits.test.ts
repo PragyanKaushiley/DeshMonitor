@@ -1,7 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { loadDotenv } from "@desh-monitor/config";
-import { createDb, getAuthSessionByTokenHash, getVisitor, listVisitorSessions } from "@desh-monitor/db";
+import {
+  createDb,
+  deleteUser,
+  deleteVisitor,
+  getAuthSessionByTokenHash,
+  getVisitor,
+  listVisitorSessions,
+} from "@desh-monitor/db";
 import app from "../index";
 import { sha256Hex } from "../lib/requestMeta";
 import type { Bindings } from "../types";
@@ -47,6 +54,14 @@ const visitBody = {
 };
 
 describe.skipIf(!hasCredentials)("POST /visits (integration)", () => {
+  const createdVisitorIds: string[] = [];
+  const createdUserIds: string[] = [];
+  afterAll(async () => {
+    const db = createDb(testEnv().DATABASE_URL);
+    for (const id of createdVisitorIds) await deleteVisitor(db, id);
+    for (const id of createdUserIds) await deleteUser(db, id);
+  });
+
   it("creates a visitor + session, then continues the same session for the same browser", async () => {
     const first = await app.request(
       "/visits",
@@ -56,6 +71,7 @@ describe.skipIf(!hasCredentials)("POST /visits (integration)", () => {
     expect(first.status).toBe(200);
     const visitorId = cookieValue(first, "dm_vid");
     expect(visitorId).toMatch(/^[0-9a-f-]{36}$/);
+    createdVisitorIds.push(visitorId as string);
 
     const second = await app.request(
       "/visits",
@@ -91,6 +107,7 @@ describe.skipIf(!hasCredentials)("POST /visits (integration)", () => {
       testEnv(),
     );
     const visitorId = cookieValue(visit, "dm_vid") as string;
+    createdVisitorIds.push(visitorId);
 
     const signup = await app.request(
       "/auth/signup",
@@ -104,6 +121,7 @@ describe.skipIf(!hasCredentials)("POST /visits (integration)", () => {
     expect(signup.status).toBe(201);
     const token = cookieValue(signup, "session") as string;
     const { user } = (await signup.json()) as { user: { id: string } };
+    createdUserIds.push(user.id);
 
     const db = createDb(testEnv().DATABASE_URL);
     const tokenHash = await sha256Hex(token);

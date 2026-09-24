@@ -49,23 +49,24 @@ export function CinematicJourney({ phase }: { phase: LandingPhase }) {
 
   const onGlobeStatus = useCallback((status: string) => setSceneLabel(status), []);
 
-  const content = (
+  // The page tree must keep the same shape whichever way the preference goes:
+  // it is only known after hydration (and can change while the page is open),
+  // and swapping a wrapper around the scenes made React remount them while
+  // their sections were still inside GSAP's pin spacers — React's removeChild
+  // then threw. So smooth scroll is a childless sibling that can come and go
+  // (root Lenis renders no DOM; useLenis finds it through the root store).
+  return (
     <>
+      {!prefersReducedMotion && (
+        <>
+          <ReactLenis root options={{ autoRaf: false }} />
+          <LenisGsapBridge />
+        </>
+      )}
       <LandingNav sceneLabel={sceneLabel} />
       <GlobeScene reducedMotion={prefersReducedMotion} phase={phase} onStatusChange={onGlobeStatus} />
       <IndiaJourney reducedMotion={prefersReducedMotion} />
       <SupportProject />
     </>
-  );
-
-  if (prefersReducedMotion) {
-    return content;
-  }
-
-  return (
-    <ReactLenis root options={{ autoRaf: false }}>
-      <LenisGsapBridge />
-      {content}
-    </ReactLenis>
   );
 }
