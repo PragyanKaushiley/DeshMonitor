@@ -1,2 +1,15 @@
+# Static files served straight from Cloudflare's asset store (pages get their
+# headers from next.config.ts).
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
 /_next/static/*
   Cache-Control: public,max-age=31536000,immutable
+
+# Landing data and artwork (globe GeoJSON, poster, India outline): not
+# content-hashed, so cached for a day and refreshed in the background.
+/landing/*
+  Cache-Control: public,max-age=86400,stale-while-revalidate=604800

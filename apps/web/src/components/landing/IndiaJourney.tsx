@@ -265,7 +265,7 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
             shimmerColor="#2dd4bf"
             className="mt-3 inline-flex gap-2 border-foreground/30 font-display text-sm tracking-[0.2em] text-foreground sm:text-base"
           >
-            ENTER <Desh /> MONITOR
+            ENTER <Desh tooltip={false} /> MONITOR
             <span aria-hidden>→</span>
           </ShimmerLink>
         </div>

@@ -41,7 +41,7 @@ export function LandingNav({ sceneLabel, showProgress = true }: { sceneLabel: st
         }}
         className="whitespace-nowrap font-display text-sm tracking-[0.2em] text-foreground sm:text-base"
       >
-        <Desh /> MONITOR
+        <Desh tooltip={false} /> MONITOR
       </a>
       <div className="flex min-w-0 items-center gap-3 sm:gap-6">
         <span className="truncate font-mono text-[10px] tracking-[0.15em] text-muted-foreground sm:text-xs sm:tracking-[0.2em]">

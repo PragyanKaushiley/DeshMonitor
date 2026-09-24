@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { secureHeaders } from "hono/secure-headers";
 import { toLogEntryInput } from "@desh-monitor/db";
 import { errorFields } from "@desh-monitor/logger";
 import { createCollectingLogger, persistLogs, requestLogging } from "./lib/logging";
@@ -19,6 +20,8 @@ app.use(
     credentials: true,
   }),
 );
+// Standard hardening headers (nosniff, frame denial, HSTS, …) on every response.
+app.use("*", secureHeaders());
 app.use("*", requestLogging());
 
 app.onError((error, c) => {

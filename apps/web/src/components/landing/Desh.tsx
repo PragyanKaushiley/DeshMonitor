@@ -10,13 +10,23 @@
 // `explain` adds the meaning as screen-reader text too, since the `title`
 // tooltip is hover-only (unreachable by keyboard and touch). Use it on the
 // main heading only, so it isn't read out at every occurrence.
-export function Desh({ className = "", explain = false }: { className?: string; explain?: boolean }) {
+// `tooltip={false}` inside links and buttons: there, a hover tooltip saying
+// "India / Bharat" reads as if it described where the link goes.
+export function Desh({
+  className = "",
+  explain = false,
+  tooltip = true,
+}: {
+  className?: string;
+  explain?: boolean;
+  tooltip?: boolean;
+}) {
   return (
     <>
       {/* tracking-normal: letter-spacing inherited from spaced-out caps
           (nav, CTA, loader) splits Devanagari's joining headline bar, making
           "दे" and "श" look like separate words. */}
-      <span lang="hi" title="India / Bharat" className={`text-[1.18em] tracking-normal ${className}`}>
+      <span lang="hi" title={tooltip ? "India / Bharat" : undefined} className={`text-[1.18em] tracking-normal ${className}`}>
         देश
       </span>
       {explain && <span className="sr-only"> (India / Bharat)</span>}

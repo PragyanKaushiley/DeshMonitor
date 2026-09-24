@@ -187,7 +187,7 @@ export function LandingLoader({ onComplete }: { onComplete: () => void }) {
           <span className="font-mono text-xs tracking-[0.3em] text-muted-foreground">
             {hydrated ? `${String(percent).padStart(2, "0")}%` : " "}
           </span>
-          <span className="font-mono text-[11px] tracking-[0.25em] text-muted-foreground/80">
+          <span className="font-mono text-[11px] tracking-[0.25em] text-muted-foreground">
             {!hydrated
               ? " "
               : hasCriticalFailure

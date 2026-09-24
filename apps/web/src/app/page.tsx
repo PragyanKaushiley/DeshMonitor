@@ -1,46 +1,27 @@
-"use client";
+import type { Metadata } from "next";
+import { HomePage } from "@/components/landing/HomePage";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 
-import { useCallback, useLayoutEffect, useState } from "react";
-import { LandingLoader } from "@/components/landing/LandingLoader";
-import { CinematicJourney, type LandingPhase } from "@/components/landing/CinematicJourney";
-import { VisitTracker } from "@/components/consent/VisitTracker";
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
-export default function Home() {
-  const [phase, setPhase] = useState<LandingPhase>("loading");
-  const onComplete = useCallback(() => setPhase("ready"), []);
+// schema.org WebSite: tells search engines the site's name and address.
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE_NAME,
+  alternateName: "देश Monitor",
+  url: SITE_URL,
+  description: "Real-time signals about India from news, weather and beyond — collected, verified and made visible.",
+  inLanguage: "en-IN",
+};
 
-  useLayoutEffect(() => {
-    // Scroll-driven experience: always restart from the top on reload,
-    // rather than restoring a mid-sequence scroll position.
-    window.history.scrollRestoration = "manual";
-    window.scrollTo(0, 0);
-
-    // Scene height (--stage-h) follows the window's *width* changes only.
-    // Height-only changes — docking devtools, a mobile address bar
-    // collapsing — would otherwise re-center the hero and move the globe.
-    const root = document.documentElement;
-    let lastWidth = window.innerWidth;
-    root.style.setProperty("--stage-h", `${window.innerHeight}px`);
-    function onResize() {
-      if (window.innerWidth === lastWidth) return;
-      lastWidth = window.innerWidth;
-      root.style.setProperty("--stage-h", `${window.innerHeight}px`);
-    }
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
+export default function Page() {
   return (
-    <main className="relative">
-      {/* Mounted immediately (not after the loader) so the globe is already
-          built beneath the loader and the wordmark has a real target. */}
-      {/* Inert until the loader is gone: it covers the page, so nothing
-          underneath should be focusable or read out by screen readers. */}
-      <div inert={phase !== "ready"}>
-        <CinematicJourney phase={phase} />
-      </div>
-      <LandingLoader onComplete={onComplete} />
-      <VisitTracker enabled={phase === "ready"} />
-    </main>
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
+      <HomePage />
+    </>
   );
 }

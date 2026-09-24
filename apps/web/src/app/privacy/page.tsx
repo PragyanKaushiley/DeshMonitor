@@ -9,6 +9,7 @@ import { VisitTracker } from "@/components/consent/VisitTracker";
 export const metadata: Metadata = {
   title: "Privacy policy",
   description: "What Desh Monitor records about visits and accounts, why, and your choices.",
+  alternates: { canonical: "/privacy" },
 };
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
