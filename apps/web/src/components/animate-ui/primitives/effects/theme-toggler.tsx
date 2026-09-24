@@ -109,17 +109,26 @@ function ThemeToggler({
       // `setTheme` call below — otherwise the theme choice silently fails
       // to persist (next-themes state/localStorage stay on the old value
       // even though the DOM's `dark` class already flipped).
-      await document
-        .startViewTransition(() => {
-          flushSync(() => {
-            setPreview({ effective: theme, resolved });
-            document.documentElement.classList.toggle(
-              'dark',
-              resolved === 'dark',
-            );
-          });
-        })
-        .ready.catch(() => {});
+      // Snapshots taken for the transition don't render backdrop-filter
+      // (notably in Safari), so a translucent, blurred bar would show what's
+      // behind it until the switch completes. While this flag is on, such
+      // surfaces go opaque (see the nav); it's cleared when the transition
+      // is fully done.
+      const root = document.documentElement;
+      root.dataset.themeSwitching = '';
+      const transition = document.startViewTransition(() => {
+        flushSync(() => {
+          setPreview({ effective: theme, resolved });
+          root.classList.toggle('dark', resolved === 'dark');
+        });
+      });
+      void transition.finished
+        .catch(() => {})
+        .finally(() => {
+          delete root.dataset.themeSwitching;
+        });
+
+      await transition.ready.catch(() => {});
 
       document.documentElement
         .animate(

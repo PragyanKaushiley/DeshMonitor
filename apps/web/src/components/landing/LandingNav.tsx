@@ -22,8 +22,9 @@ export function LandingNav({ sceneLabel, showProgress = true }: { sceneLabel: st
           guaranteed to be dark photography (the globe/India/data sections
           all use theme-reactive bg-background), so a hardcoded white/black
           treatment would go illegible in light mode — a backdrop blur reads
-          against anything, in either theme. */}
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-background/50 backdrop-blur-sm" />
+          against anything, in either theme. Solid while the theme switches:
+          the transition's snapshots drop the blur (see the theme toggler). */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-background/50 backdrop-blur-sm [html[data-theme-switching]_&]:bg-background" />
       {showProgress && (
         <ScrollProgress className="absolute top-auto bottom-0 h-0.5 from-teal-300 via-teal-500 to-teal-700" />
       )}
