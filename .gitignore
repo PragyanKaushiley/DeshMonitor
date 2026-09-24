@@ -46,6 +46,10 @@ AGENTS.md
 # Markdown is never committed — docs, notes and plans stay local
 *.md
 
+# Asset provenance/licence notes — reference only, not needed by the app
+apps/web/public/**/metadata.json
+apps/web/public/**/*-metadata.json
+
 # Development artifacts
 .dev-artifacts/
 screenshots/
