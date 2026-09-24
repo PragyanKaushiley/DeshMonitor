@@ -70,3 +70,4 @@ export type {
 export * as logsSchema from "./schema/logs";
 export { insertLogEntries, pruneLogEntries, countLogEntries, toLogEntryInput } from "./repositories/logs";
 export type { LogEntryInput } from "./repositories/logs";
+export { pingDatabase } from "./repositories/health";

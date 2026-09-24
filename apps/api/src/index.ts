@@ -4,6 +4,7 @@ import { toLogEntryInput } from "@desh-monitor/db";
 import { errorFields } from "@desh-monitor/logger";
 import { createCollectingLogger, persistLogs, requestLogging } from "./lib/logging";
 import { authRoutes } from "./routes/auth";
+import { healthRoutes } from "./routes/health";
 import { logRoutes } from "./routes/logs";
 import { visitRoutes } from "./routes/visits";
 import { runScheduled } from "./scheduled";
@@ -26,6 +27,7 @@ app.onError((error, c) => {
 });
 
 app.get("/", (c) => c.json({ name: "desh-monitor-api" }));
+app.route("/health", healthRoutes);
 app.route("/auth", authRoutes);
 app.route("/visits", visitRoutes);
 app.route("/logs", logRoutes);

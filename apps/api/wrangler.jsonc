@@ -11,6 +11,12 @@
     "WEB_APP_ORIGIN": "https://deshmonitor.com",
     "GITHUB_REPO": "PragyanKaushiley/DeshMonitor"
   },
+  // Served at api.deshmonitor.com: the same site as the web app, so the API's
+  // SameSite=Lax cookies (visitor id, login session) work from it.
+  "routes": [{ "pattern": "api.deshmonitor.com", "custom_domain": true }],
+  // Only the custom domain: no *.workers.dev or preview URLs.
+  "workers_dev": false,
+  "preview_urls": false,
   // Every 15 minutes (:05, :20, :35, :50 UTC) — src/scheduled.ts picks the
   // ingest jobs due at each slot.
   "triggers": {
