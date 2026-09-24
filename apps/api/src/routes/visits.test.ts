@@ -9,7 +9,7 @@ import {
   getVisitor,
   listVisitorSessions,
 } from "@desh-monitor/db";
-import app from "../index";
+import { app } from "../index";
 import { sha256Hex } from "../lib/requestMeta";
 import type { Bindings } from "../types";
 

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import { loadDotenv } from "@desh-monitor/config";
 import { createDb, deleteUser, getUserByEmail } from "@desh-monitor/db";
-import app from "./index";
+import { app } from "./index";
 import type { Bindings } from "./types";
 
 // Integration test against real Neon + Upstash. Skipped when credentials

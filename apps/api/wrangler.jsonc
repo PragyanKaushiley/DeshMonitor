@@ -5,6 +5,11 @@
   "compatibility_date": "2026-01-01",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "WEB_APP_ORIGIN": "http://localhost:3000"
+    "WEB_APP_ORIGIN": "http://localhost:3000",
+    "GITHUB_REPO": "PragyanKaushiley/DeshMonitor"
+  },
+  // Hourly, at :05 UTC — src/scheduled.ts picks the ingest jobs due that hour.
+  "triggers": {
+    "crons": ["5 * * * *"]
   }
 }

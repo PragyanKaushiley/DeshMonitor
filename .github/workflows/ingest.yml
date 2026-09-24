@@ -1,0 +1,107 @@
+name: Ingest
+
+# Started on time by the Cloudflare cron (apps/api src/scheduled.ts) through
+# workflow_dispatch, or by hand from the Actions tab. The schedule below is a
+# fallback 30 minutes after each cron slot: it runs only the jobs the cron
+# hasn't already dispatched in the last 45 minutes. Keep it in step with
+# jobsDue() in apps/api.
+run-name: "${{ github.event_name == 'workflow_dispatch' && format('ingest: {0}', inputs.job) || format('ingest (fallback) {0}', github.event.schedule) }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Ingest job to run
+        required: true
+        type: choice
+        options:
+          - news
+          - weather-forecast
+          - weather-air-quality
+          - weather-marine
+          - weather-flood
+          - weather-seasonal
+          - weather-climate
+  schedule:
+    - cron: "35 * * * *" # news
+    - cron: "35 */3 * * *" # weather-forecast, weather-air-quality
+    - cron: "35 1 * * *" # weather-marine, weather-flood
+    - cron: "35 2 * * 1" # weather-seasonal
+    - cron: "35 3 1 * *" # weather-climate
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      jobs: ${{ steps.plan.outputs.jobs }}
+    steps:
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          INPUT_JOB: ${{ inputs.job }}
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "jobs=$(jq -cn '[$job]' --arg job "$INPUT_JOB")" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          case "$SCHEDULE" in
+            "35 * * * *") due="news" ;;
+            "35 */3 * * *") due="weather-forecast weather-air-quality" ;;
+            "35 1 * * *") due="weather-marine weather-flood" ;;
+            "35 2 * * 1") due="weather-seasonal" ;;
+            "35 3 1 * *") due="weather-climate" ;;
+            *) echo "::error::unknown schedule '$SCHEDULE'"; exit 1 ;;
+          esac
+
+          since=$(date -u -d '45 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+          recent=$(gh run list -R "$GITHUB_REPOSITORY" --workflow ingest.yml --event workflow_dispatch \
+            --created ">=$since" --limit 100 --json displayTitle --jq '.[].displayTitle')
+
+          jobs=()
+          for job in $due; do
+            if grep -qxF "ingest: $job" <<<"$recent"; then
+              echo "::notice::$job was already dispatched by the Cloudflare cron; skipping"
+            else
+              jobs+=("$job")
+            fi
+          done
+          echo "jobs=$(jq -cn '$ARGS.positional' --args "${jobs[@]}")" >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: plan
+    if: needs.plan.outputs.jobs != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.jobs) }}
+    # Never two runs of the same job at once; a new one waits for the last.
+    concurrency:
+      group: ingest-${{ matrix.job }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      # Only the ingest app and the workspace packages it depends on.
+      - run: pnpm install --frozen-lockfile --filter "@desh-monitor/ingest..."
+
+      - run: pnpm --filter @desh-monitor/ingest run "fetch:${JOB}"
+        env:
+          JOB: ${{ matrix.job }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
