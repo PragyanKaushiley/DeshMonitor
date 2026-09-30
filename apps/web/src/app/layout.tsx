@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+import { AuthProvider } from "@/components/auth/auth-provider";
 import { ErrorReporter } from "@/components/logging/ErrorReporter";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
@@ -55,7 +56,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <ErrorReporter />
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

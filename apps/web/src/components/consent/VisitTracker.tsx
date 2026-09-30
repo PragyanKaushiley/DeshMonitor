@@ -42,7 +42,9 @@ export function VisitTracker({ enabled = true }: { enabled?: boolean }) {
       </h2>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         With your permission, we record your visit — including your IP address, approximate location and device — to
-        understand who uses this site.{" "}
+        understand who uses this site. Logging in sets a cookie that keeps you signed in, and the site saves your theme
+        and this choice on your device. Those are needed for the site to work, so they don&apos;t depend on this
+        choice.{" "}
         <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
           Privacy policy
         </Link>

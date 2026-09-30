@@ -67,6 +67,44 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
+        <Section title="Cookies and storage">
+          <p>
+            Everything below is set by this site alone — nothing is used for advertising, and nothing is shared with
+            other companies. Only the first one depends on your choice in the privacy banner.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[34rem] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border text-left font-mono text-[10px] tracking-[0.15em] text-foreground">
+                  <th scope="col" className="py-2 pr-3 font-medium">NAME</th>
+                  <th scope="col" className="py-2 pr-3 font-medium">WHAT IT IS</th>
+                  <th scope="col" className="py-2 pr-3 font-medium">SET WHEN</th>
+                  <th scope="col" className="py-2 pr-3 font-medium">LASTS</th>
+                  <th scope="col" className="py-2 font-medium">NEEDS CONSENT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["dm_vid", "Cookie", "You accept the banner", "1 year", "Yes — asked by the banner"],
+                  ["session", "Cookie", "You log in or sign up", "30 days", "No — needed to stay logged in"],
+                  ["dm_consent", "Browser storage", "You choose Accept or Decline", "Until cleared", "No — remembers your choice"],
+                  ["theme", "Browser storage", "You switch light or dark", "Until cleared", "No — remembers your theme"],
+                ].map(([name, kind, when, lasts, consent]) => (
+                  <tr key={name} className="border-b border-border/60 align-top">
+                    <td className="py-2 pr-3">
+                      <code className="text-foreground">{name}</code>
+                    </td>
+                    <td className="py-2 pr-3">{kind}</td>
+                    <td className="py-2 pr-3">{when}</td>
+                    <td className="py-2 pr-3">{lasts}</td>
+                    <td className="py-2">{consent}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+
         <Section title="Who processes it">
           <p>
             The site and its API run on Cloudflare, which also provides the location estimate. Records are stored in

@@ -21,6 +21,14 @@ const credentialsSchema = z.object({
   password: z.string().min(8).max(200),
 });
 
+// Abuse limits (per IP, via Redis). Login is also limited per email.
+const SIGNUPS_PER_HOUR_PER_IP = 5;
+const LOGINS_PER_15_MIN = 10;
+
+function clientIp(c: Context<AppEnv>): string {
+  return c.req.header("cf-connecting-ip") ?? "unknown";
+}
+
 function toPublicUser(user: { id: string; email: string }) {
   return { id: user.id, email: user.email };
 }
@@ -60,6 +68,13 @@ authRoutes.post("/signup", async (c) => {
     return c.json({ error: "invalid_input" }, 400);
   }
 
+  const redis = createRedis({ url: c.env.UPSTASH_REDIS_REST_URL, token: c.env.UPSTASH_REDIS_REST_TOKEN });
+  const allowed = await checkRateLimit(redis, `signup:${clientIp(c)}`, SIGNUPS_PER_HOUR_PER_IP, 60 * 60);
+  if (!allowed) {
+    c.get("logger").warn("signup rate limit hit");
+    return c.json({ error: "rate_limited" }, 429);
+  }
+
   const db = createDb(c.env.DATABASE_URL);
   const existing = await getUserByEmail(db, parsed.data.email);
   if (existing) {
@@ -70,7 +85,6 @@ authRoutes.post("/signup", async (c) => {
   const user = await createUser(db, { email: parsed.data.email, passwordHash });
   c.get("logger").info("user signed up", { userId: user.id });
 
-  const redis = createRedis({ url: c.env.UPSTASH_REDIS_REST_URL, token: c.env.UPSTASH_REDIS_REST_TOKEN });
   await startSession(c, db, redis, user.id);
 
   return c.json({ user: toPublicUser(user) }, 201);
@@ -85,8 +99,7 @@ authRoutes.post("/login", async (c) => {
 
   const redis = createRedis({ url: c.env.UPSTASH_REDIS_REST_URL, token: c.env.UPSTASH_REDIS_REST_TOKEN });
 
-  const clientIp = c.req.header("cf-connecting-ip") ?? "unknown";
-  const allowed = await checkRateLimit(redis, `login:${parsed.data.email}:${clientIp}`, 10, 15 * 60);
+  const allowed = await checkRateLimit(redis, `login:${parsed.data.email}:${clientIp(c)}`, LOGINS_PER_15_MIN, 15 * 60);
   if (!allowed) {
     c.get("logger").warn("login rate limit hit");
     return c.json({ error: "rate_limited" }, 429);
@@ -136,5 +149,7 @@ authRoutes.get("/me", async (c) => {
   const user = await getUserById(db, session.userId);
   if (!user) return c.json({ user: null });
 
-  return c.json({ user: toPublicUser(user) });
+  // Sessions last a fixed 30 days from login, so the drawer can show when
+  // this one ends. Absent on sessions created before this was recorded.
+  return c.json({ user: toPublicUser(user), sessionStartedAt: session.createdAt ?? null });
 });

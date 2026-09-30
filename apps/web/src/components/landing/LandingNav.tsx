@@ -5,6 +5,7 @@ import { useLenis } from "lenis/react";
 import { usePathname } from "next/navigation";
 import { ThemeTogglerButton } from "@/components/animate-ui/components/buttons/theme-toggler";
 import { ScrollProgress } from "@/components/ui/scroll-progress";
+import { AccountDrawer } from "@/components/auth/account-drawer";
 import { Desh } from "./Desh";
 
 export function LandingNav({ sceneLabel, showProgress = true }: { sceneLabel: string; showProgress?: boolean }) {
@@ -47,11 +48,14 @@ export function LandingNav({ sceneLabel, showProgress = true }: { sceneLabel: st
         <span className="truncate font-mono text-[10px] tracking-[0.15em] text-muted-foreground sm:text-xs sm:tracking-[0.2em]">
           {sceneLabel}
         </span>
-        {mounted ? (
-          <ThemeTogglerButton variant="ghost" size="sm" />
-        ) : (
-          <span className="size-9" aria-hidden />
-        )}
+        <div className="flex items-center gap-2">
+          {mounted ? (
+            <ThemeTogglerButton variant="ghost" size="sm" />
+          ) : (
+            <span className="size-9" aria-hidden />
+          )}
+          <AccountDrawer />
+        </div>
       </div>
     </nav>
   );

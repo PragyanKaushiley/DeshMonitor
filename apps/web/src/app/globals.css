@@ -174,3 +174,13 @@
     display: none;
   }
 }
+
+/* The account drawer (vaul) sets its slide transition inline, so reduced
+   motion has to override it here rather than with a utility class. */
+@media (prefers-reduced-motion: reduce) {
+  [data-vaul-drawer],
+  [data-vaul-overlay] {
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -23,6 +23,16 @@ function testEnv(): Bindings {
   };
 }
 
+// Signups are rate limited per IP, so every test signs up from its own
+// address — otherwise tests (and repeat runs within the hour) share a bucket.
+function freshIp(): string {
+  return `198.51.100.${Math.floor(Math.random() * 250) + 1}-${randomUUID().slice(0, 8)}`;
+}
+
+function headers(extra: Record<string, string> = {}): Record<string, string> {
+  return { "content-type": "application/json", origin: WEB_ORIGIN, "cf-connecting-ip": freshIp(), ...extra };
+}
+
 function extractSessionCookie(res: Response): string {
   const setCookie = res.headers.get("set-cookie");
   if (!setCookie) throw new Error("expected a set-cookie header");
@@ -56,7 +66,7 @@ describe.skipIf(!hasCredentials)("apps/api auth routes (integration)", () => {
       "/auth/signup",
       {
         method: "POST",
-        headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+        headers: headers(),
         body: JSON.stringify({ email, password }),
       },
       testEnv(),
@@ -68,7 +78,7 @@ describe.skipIf(!hasCredentials)("apps/api auth routes (integration)", () => {
 
     const meRes = await app.request(
       "/auth/me",
-      { headers: { cookie, origin: WEB_ORIGIN } },
+      { headers: headers({ cookie }) },
       testEnv(),
     );
     expect(meRes.status).toBe(200);
@@ -77,14 +87,14 @@ describe.skipIf(!hasCredentials)("apps/api auth routes (integration)", () => {
 
     const logoutRes = await app.request(
       "/auth/logout",
-      { method: "POST", headers: { cookie, origin: WEB_ORIGIN } },
+      { method: "POST", headers: headers({ cookie }) },
       testEnv(),
     );
     expect(logoutRes.status).toBe(200);
 
     const meAfterLogoutRes = await app.request(
       "/auth/me",
-      { headers: { cookie, origin: WEB_ORIGIN } },
+      { headers: headers({ cookie }) },
       testEnv(),
     );
     const meAfterLogoutBody = (await meAfterLogoutRes.json()) as { user: unknown };
@@ -92,7 +102,7 @@ describe.skipIf(!hasCredentials)("apps/api auth routes (integration)", () => {
   });
 
   it("GET /auth/me with no cookie returns 200 with a null user, not a 401", async () => {
-    const res = await app.request("/auth/me", { headers: { origin: WEB_ORIGIN } }, testEnv());
+    const res = await app.request("/auth/me", { headers: headers() }, testEnv());
     expect(res.status).toBe(200);
     const body = (await res.json()) as { user: unknown };
     expect(body.user).toBeNull();
@@ -106,7 +116,7 @@ describe.skipIf(!hasCredentials)("apps/api auth routes (integration)", () => {
       "/auth/signup",
       {
         method: "POST",
-        headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+        headers: headers(),
         body: JSON.stringify({ email, password }),
       },
       testEnv(),
@@ -116,12 +126,47 @@ describe.skipIf(!hasCredentials)("apps/api auth routes (integration)", () => {
       "/auth/signup",
       {
         method: "POST",
-        headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+        headers: headers(),
         body: JSON.stringify({ email, password }),
       },
       testEnv(),
     );
     expect(secondRes.status).toBe(409);
+  });
+
+  it("rate-limits signups from one address", async () => {
+    const ip = freshIp();
+    const password = "correct horse battery staple";
+    const attempt = () =>
+      app.request(
+        "/auth/signup",
+        { method: "POST", headers: headers({ "cf-connecting-ip": ip }), body: JSON.stringify({ email: testEmail(), password }) },
+        testEnv(),
+      );
+
+    for (let i = 0; i < 5; i++) {
+      expect((await attempt()).status).toBe(201);
+    }
+    const blocked = await attempt();
+    expect(blocked.status).toBe(429);
+    expect(await blocked.json()).toEqual({ error: "rate_limited" });
+  });
+
+  it("reports when the session started, so the UI can show when it ends", async () => {
+    const before = Date.now();
+    const signupRes = await app.request(
+      "/auth/signup",
+      { method: "POST", headers: headers(), body: JSON.stringify({ email: testEmail(), password: "correct horse battery staple" }) },
+      testEnv(),
+    );
+    const cookie = extractSessionCookie(signupRes);
+
+    const meRes = await app.request("/auth/me", { headers: headers({ cookie }) }, testEnv());
+    const body = (await meRes.json()) as { sessionStartedAt: string | null };
+    expect(body.sessionStartedAt).toBeTruthy();
+    const startedAt = Date.parse(body.sessionStartedAt as string);
+    expect(startedAt).toBeGreaterThanOrEqual(before - 1000);
+    expect(startedAt).toBeLessThanOrEqual(Date.now() + 1000);
   });
 
   it("rejects login with a wrong password", async () => {
@@ -130,7 +175,7 @@ describe.skipIf(!hasCredentials)("apps/api auth routes (integration)", () => {
       "/auth/signup",
       {
         method: "POST",
-        headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+        headers: headers(),
         body: JSON.stringify({ email, password: "correct horse battery staple" }),
       },
       testEnv(),
@@ -140,7 +185,7 @@ describe.skipIf(!hasCredentials)("apps/api auth routes (integration)", () => {
       "/auth/login",
       {
         method: "POST",
-        headers: { "content-type": "application/json", origin: WEB_ORIGIN },
+        headers: headers(),
         body: JSON.stringify({ email, password: "wrong password" }),
       },
       testEnv(),
