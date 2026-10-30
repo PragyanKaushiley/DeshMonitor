@@ -48,7 +48,7 @@ export function SignalsPanel({
   return (
     <section
       aria-label="Signals"
-      className={`relative flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card/80 backdrop-blur-sm ${className}`}
+      className={`relative flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card/80 shadow-(--shadow-card) backdrop-blur-sm ${className}`}
     >
       <ShineBorder shineColor={SHINE_COLORS} />
 

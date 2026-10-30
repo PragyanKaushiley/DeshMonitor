@@ -35,7 +35,7 @@ export function MiniCard({
 
   return (
     <MagicCard
-      className="h-full rounded-xl border border-border bg-card/80"
+      className="h-full rounded-xl border border-border bg-card/80 shadow-(--shadow-card)"
       gradientColor="var(--spot, #1f2a2a)"
       gradientFrom="var(--sev-watch, #2dd4bf)"
       gradientTo="#0f766e"

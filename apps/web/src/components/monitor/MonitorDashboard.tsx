@@ -94,7 +94,7 @@ export function MonitorDashboard() {
             Exactly one viewport tall. */}
         {desktop && (
         <div className="flex min-h-0 flex-1 gap-3 px-3 pt-3">
-          <section aria-label="Map" className="flex min-w-0 flex-[58] flex-col overflow-hidden rounded-xl border border-teal-500/50 bg-card/40 shadow-[0_0_0_1px_rgba(45,212,191,0.12),0_0_24px_rgba(45,212,191,0.08)]">
+          <section aria-label="Map" className="flex min-w-0 flex-[58] flex-col overflow-hidden rounded-xl border border-teal-500/50 bg-card/40 shadow-(--shadow-card)">
             <MapHeader filters={filters} count={visible.length} />
             <div className="relative min-h-0 flex-1">
               <IndiaMap
@@ -110,7 +110,7 @@ export function MonitorDashboard() {
             </div>
           </section>
 
-          <div className="min-w-0 flex-[42] overflow-y-auto overscroll-contain pr-1">
+          <div className="-m-1.5 min-w-0 flex-[42] overflow-y-auto overscroll-contain p-1.5">
             <div className="flex flex-col gap-3">
               <SignalsPanel
                 className="h-[440px] shrink-0"
