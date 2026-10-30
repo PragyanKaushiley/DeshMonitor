@@ -2,7 +2,6 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SEVERITY, SEVERITY_ORDER } from "@/lib/monitor/categories";
 import type { Signal } from "@/lib/monitor/types";
 import { usePrefersReducedMotion } from "@/lib/landing/usePrefersReducedMotion";
@@ -155,12 +154,14 @@ export function IndiaMap({
           const selected = selectedId === signal.id;
                     const pulsing = pulseId === signal.id && !reducedMotion;
           return (
-            <Tooltip key={signal.id}>
-              <TooltipTrigger asChild>
-                <g
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`${signal.title}. ${signal.place}. ${tone.label}`}
+            // A plain <g> with a native <title> for the hover label. A Radix
+            // Tooltip with asChild here re-attached its ref on every render in
+            // production, which set state each time and looped forever.
+            <g
+              key={signal.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`${signal.title}. ${signal.place}. ${tone.label}`}
                   onClick={() => onSelect(signal)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
@@ -168,8 +169,9 @@ export function IndiaMap({
                       onSelect(signal);
                     }
                   }}
-                  className="cursor-pointer outline-none focus-visible:[&>circle:last-of-type]:stroke-teal-300"
-                >
+              className="cursor-pointer outline-none focus-visible:[&>circle:last-of-type]:stroke-teal-300"
+            >
+              <title>{signal.title}</title>
                   {/* Halo for the worst signals, and a dashed ring so they
                       read as urgent without relying on colour alone. */}
                   {signal.severity === "critical" && (
@@ -195,12 +197,7 @@ export function IndiaMap({
                   )}
                   <circle cx={x} cy={y} r={selected ? 9 : 7} fill={tone.marker} />
                   <circle cx={x} cy={y} r={selected ? 13 : 10} fill="none" stroke={tone.marker} strokeOpacity={0.5} strokeWidth={2} />
-                </g>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-64">
-                {signal.title}
-              </TooltipContent>
-            </Tooltip>
+            </g>
           );
         })}
 

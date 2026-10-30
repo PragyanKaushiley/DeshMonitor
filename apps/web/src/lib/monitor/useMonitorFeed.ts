@@ -37,9 +37,14 @@ export function useMonitorFeed(
   // latest test has to be reachable through a ref.
   const canInsertRef = useRef(canInsert);
   canInsertRef.current = canInsert;
+  // The source is created once, on mount. Listing `makeSource` itself as a
+  // dependency re-subscribed on every render in the production build (each
+  // run regenerated the signals and started another timer loop), so the
+  // factory is read through a ref instead.
+  const makeSourceRef = useRef(makeSource);
 
   useEffect(() => {
-    const source = makeSource();
+    const source = makeSourceRef.current();
     setSignals(source.initialSignals());
     setCards(source.dataCards());
     setReady(true);
@@ -74,7 +79,7 @@ export function useMonitorFeed(
       stopFeed();
       stopCards();
     };
-  }, [makeSource]);
+  }, []);
 
   // Stable identities: the panel observes scroll position through these, and
   // a new function each render would tear that observer down every time.
