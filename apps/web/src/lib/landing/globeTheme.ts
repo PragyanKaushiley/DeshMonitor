@@ -11,7 +11,7 @@ export interface GlobeThemeColors {
 }
 
 const DARK: GlobeThemeColors = {
-  background: "#020617",
+  background: "#0d1420",
   wireframe: "#2dd4bf",
   graticule: "#134e4a",
   atmosphere: "#2dd4bf",
@@ -19,7 +19,7 @@ const DARK: GlobeThemeColors = {
 };
 
 const LIGHT: GlobeThemeColors = {
-  background: "#f8fafc",
+  background: "#eef1f4",
   wireframe: "#0f766e",
   graticule: "#99f6e4",
   atmosphere: "#0d9488",

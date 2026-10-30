@@ -123,22 +123,22 @@
 
 .dark {
   --light-ray: rgba(94, 234, 212, 0.2);
-  --background: oklch(0.145 0 0);
+  --background: oklch(0.19 0.01 250);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
+  --card: oklch(0.235 0.012 250);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
+  --popover: oklch(0.235 0.012 250);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
+  --secondary: oklch(0.29 0.013 250);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
+  --muted: oklch(0.29 0.013 250);
+  --muted-foreground: oklch(0.74 0.015 250);
+  --accent: oklch(0.29 0.013 250);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
+  --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.87 0 0);
@@ -146,11 +146,11 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
+  --sidebar: oklch(0.235 0.012 250);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent: oklch(0.29 0.013 250);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
@@ -183,4 +183,111 @@
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* Fades the scrollable edges of a container (shadcn's scroll-fade utility).
+   Where scroll-driven animations are supported the fade follows the scroll
+   position, so there is no fade at the very start or end; elsewhere both
+   edges stay softly faded. */
+@utility scroll-fade-x {
+  --scroll-fade: 2rem;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--scroll-fade),
+    #000 calc(100% - var(--scroll-fade)),
+    transparent 100%
+  );
+}
+
+@utility scroll-fade-y {
+  --scroll-fade: 2rem;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--scroll-fade),
+    #000 calc(100% - var(--scroll-fade)),
+    transparent 100%
+  );
+}
+
+/* For a frame whose contents move under it (the data carousel) rather than
+   a scroll container: both edges always fade, with no scroll timeline to
+   follow. */
+@utility marquee-fade-x {
+  --scroll-fade: 4rem;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--scroll-fade),
+    #000 calc(100% - var(--scroll-fade)),
+    transparent 100%
+  );
+}
+
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .scroll-fade-x {
+      animation: scroll-fade-x-anim both linear;
+      animation-timeline: scroll(self inline);
+    }
+    .scroll-fade-y {
+      animation: scroll-fade-y-anim both linear;
+      animation-timeline: scroll(self block);
+    }
+  }
+}
+
+@keyframes scroll-fade-x-anim {
+  0% {
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - var(--scroll-fade)), transparent 100%);
+  }
+  100% {
+    mask-image: linear-gradient(to right, transparent 0, #000 var(--scroll-fade), #000 100%);
+  }
+}
+
+@keyframes scroll-fade-y-anim {
+  0% {
+    mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - var(--scroll-fade)), transparent 100%);
+  }
+  100% {
+    mask-image: linear-gradient(to bottom, transparent 0, #000 var(--scroll-fade), #000 100%);
+  }
+}
+
+/* Light theme, site-wide: a cool neutral slate with dark teal, red and amber
+   in place of the pale shades used on the dark theme, so text and markers
+   stay readable on it. Dark mode keeps the original colours (every var()
+   with a fallback elsewhere falls back to them). */
+:root:not(.dark) {
+  --background: #e4e7ea;
+  --foreground: #1b2330;
+  --card: #f1f3f5;
+  --card-foreground: #1b2330;
+  --popover: #f1f3f5;
+  --popover-foreground: #1b2330;
+  --muted: #d9dde2;
+  --muted-foreground: #4a5565;
+  --accent: #d9dde2;
+  --secondary: #d9dde2;
+  --secondary-foreground: #1b2330;
+  --border: #b9c0c8;
+  --input: #b9c0c8;
+  --map-line: #2f6f78;
+  --map-glow: transparent;
+  --spot: #cfdde0;
+  --sev-critical: #b42318;
+  --sev-critical-glow: rgba(180, 35, 24, 0.2);
+  --sev-warning: #a15c07;
+  --sev-warning-glow: rgba(161, 92, 7, 0.2);
+  --sev-watch: #0f6e73;
+  --sev-watch-glow: rgba(15, 110, 115, 0.18);
+  --color-teal-300: #2f8a92;
+  --color-teal-400: #0f6e73;
+  --color-teal-500: #0f7a80;
+  --color-red-400: #b42318;
+  --color-amber-400: #8f5206;
+  background-color: var(--background);
+  color: var(--foreground);
 }
