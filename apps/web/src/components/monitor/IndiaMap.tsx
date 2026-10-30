@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { SEVERITY, SEVERITY_ORDER } from "@/lib/monitor/categories";
+import { layoutLabels } from "@/lib/monitor/labels";
 import type { Signal } from "@/lib/monitor/types";
 import { usePrefersReducedMotion } from "@/lib/landing/usePrefersReducedMotion";
 
@@ -32,6 +33,9 @@ interface GeoJson {
 // Landmasses smaller than this (in drawing units) — the Lakshadweep atolls,
 // a couple of kilometres across — are drawn bolder so they stay visible.
 const ISLET_SIZE = 6;
+
+// Name size on screen, in pixels.
+const LABEL_PX = 11;
 
 interface MapPath {
   d: string;
@@ -78,6 +82,21 @@ export function IndiaMap({
   const reducedMotion = usePrefersReducedMotion();
   const gridId = useId();
   const failed = useRef(false);
+  const frameRef = useRef<HTMLDivElement>(null);
+  // On-screen pixels per drawing unit, so names stay a readable size on a
+  // phone as well as on a wide screen.
+  const [scale, setScale] = useState(0.5);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const box = entry?.contentRect;
+      if (box && box.width > 0 && box.height > 0) setScale(Math.min(box.width / VIEW.width, box.height / VIEW.height));
+    });
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,16 +118,29 @@ export function IndiaMap({
 
   const located = useMemo(() => signals.filter((s) => s.lat !== null && s.lng !== null), [signals]);
 
-  // Labelled: the three most severe places, plus whatever is selected.
-  const labelledIds = useMemo(() => {
-    const ranked = [...located].sort(
-      (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity) || b.createdAt - a.createdAt,
-    );
-    return new Set(ranked.slice(0, 3).map((s) => s.id));
+  // One name per place, however many signals it has: the worst severity
+  // decides its colour and its place in the queue for a good spot.
+  const places = useMemo(() => {
+    const byPlace = new Map<string, { text: string; x: number; y: number; rank: number }>();
+    for (const signal of located) {
+      const rank = SEVERITY_ORDER.indexOf(signal.severity);
+      const known = byPlace.get(signal.place);
+      if (!known || rank < known.rank) {
+        const [x, y] = project(signal.lng as number, signal.lat as number);
+        byPlace.set(signal.place, { text: signal.place, x, y, rank });
+      }
+    }
+    return [...byPlace.values()].sort((a, b) => a.rank - b.rank);
   }, [located]);
 
+  const labels = useMemo(
+    () => layoutLabels(places.map((p) => ({ key: p.text, ...p })), LABEL_PX / scale, VIEW),
+    [places, scale],
+  );
+  const selectedPlace = located.find((s) => s.id === selectedId)?.place ?? null;
+
   return (
-    <div className={`relative overflow-hidden rounded-xl border border-border bg-card/80 backdrop-blur-sm ${className}`}>
+    <div ref={frameRef} className={`relative overflow-hidden rounded-xl border border-border bg-card/80 backdrop-blur-sm ${className}`}>
       {/* Soft teal glow behind the country. */}
       <div
         aria-hidden
@@ -201,35 +233,29 @@ export function IndiaMap({
           );
         })}
 
-        {/* Labels drawn last so they sit above every marker. */}
-        {located
-          .filter((s) => selectedId === s.id || labelledIds.has(s.id))
-          .map((signal) => {
-            const [x, y] = project(signal.lng as number, signal.lat as number);
-            const flip = x > VIEW.width * 0.62;
-            return (
-              <g key={`label-${signal.id}`} className="pointer-events-none">
-                <text
-                  x={flip ? x - 22 : x + 22}
-                  y={y - 4}
-                  textAnchor={flip ? "end" : "start"}
-                  className="fill-foreground font-display"
-                  style={{ fontSize: 30 }}
-                >
-                  {signal.place}
-                </text>
-                <text
-                  x={flip ? x - 22 : x + 22}
-                  y={y + 24}
-                  textAnchor={flip ? "end" : "start"}
-                  className="fill-muted-foreground font-mono"
-                  style={{ fontSize: 20, letterSpacing: "0.2em" }}
-                >
-                  CONF {signal.confidence}%
-                </text>
-              </g>
-            );
-          })}
+        {/* Names drawn last so they sit above every marker. */}
+        {labels.map((label) => {
+          const isSelected = label.text === selectedPlace;
+          return (
+            <g key={label.key} className="pointer-events-none">
+              <text
+                x={label.x}
+                y={label.y}
+                textAnchor={label.anchor}
+                className="fill-foreground font-medium"
+                style={{
+                  fontSize: (isSelected ? LABEL_PX + 2 : LABEL_PX) / scale,
+                  paintOrder: "stroke",
+                  stroke: "var(--card)",
+                  strokeWidth: 3 / scale,
+                  strokeLinejoin: "round",
+                }}
+              >
+                {label.text}
+              </text>
+            </g>
+          );
+        })}
       </svg>
 
       <p className="sr-only">{breadcrumb}</p>
