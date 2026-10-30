@@ -15,6 +15,19 @@ export type {
   NewsItemInput,
   FetchRecordInput,
 } from "./repositories/news";
+export * as rawDisasterSchema from "./schema/rawDisaster";
+export {
+  upsertDisasterSources,
+  getActiveDisasterSources,
+  insertDisasterItems,
+  recordDisasterFetch,
+} from "./repositories/disaster";
+export type {
+  DisasterSourceInput,
+  DisasterSourceRecord,
+  DisasterItemInput,
+  DisasterFetchInput,
+} from "./repositories/disaster";
 export * as rawWeatherSchema from "./schema/rawWeather";
 export {
   upsertLocations,

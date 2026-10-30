@@ -6,15 +6,16 @@ import type { Bindings } from "./types";
 const at = (iso: string) => new Date(iso);
 
 describe("jobsDue", () => {
-  it("runs only news in the 15-minute slots after the hour's first", () => {
-    expect(jobsDue(at("2026-09-24T05:20:00Z"))).toEqual(["news"]);
-    expect(jobsDue(at("2026-09-24T05:35:00Z"))).toEqual(["news"]);
-    expect(jobsDue(at("2026-09-24T05:50:00Z"))).toEqual(["news"]);
+  it("runs only news and disasters in the 15-minute slots after the hour's first", () => {
+    expect(jobsDue(at("2026-09-24T05:20:00Z"))).toEqual(["news", "disasters"]);
+    expect(jobsDue(at("2026-09-24T05:35:00Z"))).toEqual(["news", "disasters"]);
+    expect(jobsDue(at("2026-09-24T05:50:00Z"))).toEqual(["news", "disasters"]);
   });
 
   it("adds forecast, air quality and marine in each hour's first slot", () => {
     expect(jobsDue(at("2026-09-24T05:05:00Z"))).toEqual([
       "news",
+      "disasters",
       "weather-forecast",
       "weather-air-quality",
       "weather-marine",
@@ -75,7 +76,7 @@ describe("runScheduled", () => {
     await expect(runScheduled(Date.parse("2026-09-24T06:05:00Z"), env, logger, fetchImpl as typeof fetch)).rejects.toThrow(
       /weather-forecast/,
     );
-    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    expect(fetchImpl).toHaveBeenCalledTimes(5);
     expect(lines.at(-1)).toMatchObject({ level: "error", message: "ingest dispatch failed", failed: [{ job: "weather-forecast" }] });
   });
 

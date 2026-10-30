@@ -9,6 +9,7 @@ import type { Bindings } from "./types";
 
 export const INGEST_JOBS = [
   "news",
+  "disasters",
   "weather-forecast",
   "weather-air-quality",
   "weather-marine",
@@ -25,12 +26,13 @@ const INGEST_REF = "main";
 
 // The cron fires every 15 minutes (:05, :20, :35, :50 UTC); which jobs are
 // due at that slot. Cadences follow how often each source changes and what
-// storage and Open-Meteo's free quota allow: news every 15 minutes; forecast,
+// storage and Open-Meteo's free quota allow: news and disaster reports (USGS
+// updates its earthquake feed every minute) every 15 minutes; forecast,
 // air quality and marine hourly; flood daily (GloFAS publishes once a day);
 // seasonal weekly and climate projections (a fixed model dataset) monthly,
 // both of which are heavy requests. Old logs are pruned daily.
 export function jobsDue(at: Date): IngestJob[] {
-  const jobs: IngestJob[] = ["news"];
+  const jobs: IngestJob[] = ["news", "disasters"];
   if (at.getUTCMinutes() >= 15) return jobs; // only the hour's first slot runs weather
   const hour = at.getUTCHours();
   jobs.push("weather-forecast", "weather-air-quality", "weather-marine");

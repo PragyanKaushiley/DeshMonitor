@@ -16,6 +16,7 @@ on:
         type: choice
         options:
           - news
+          - disasters
           - weather-forecast
           - weather-air-quality
           - weather-marine
@@ -24,7 +25,7 @@ on:
           - weather-climate
           - logs-prune
   schedule:
-    - cron: "12,27,42,57 * * * *" # news (cron: every 15 min from :05)
+    - cron: "12,27,42,57 * * * *" # news, disasters (cron: every 15 min from :05)
     - cron: "40 * * * *" # weather-forecast, weather-air-quality, weather-marine (cron: hourly at :05)
     - cron: "40 1 * * *" # weather-flood (cron: 01:05 daily)
     - cron: "40 2 * * 1" # weather-seasonal (cron: Mondays 02:05)
@@ -57,7 +58,7 @@ jobs:
           # Jobs for this fallback slot, and how far back a dispatched run of
           # the same job counts as "already ran".
           case "$SCHEDULE" in
-            "12,27,42,57 * * * *") due="news"; window=12 ;;
+            "12,27,42,57 * * * *") due="news disasters"; window=12 ;;
             "40 * * * *") due="weather-forecast weather-air-quality weather-marine"; window=40 ;;
             "40 1 * * *") due="weather-flood"; window=40 ;;
             "40 2 * * 1") due="weather-seasonal"; window=40 ;;
