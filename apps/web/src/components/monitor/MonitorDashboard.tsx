@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CATEGORIES } from "@/lib/monitor/categories";
+import { useStageHeight } from "@/lib/monitor/useStageHeight";
 import { useIsDesktop } from "@/lib/monitor/useIsDesktop";
 import { useMonitorFeed } from "@/lib/monitor/useMonitorFeed";
 import { useSignalFilters } from "@/lib/monitor/useSignalFilters";
@@ -51,6 +52,7 @@ export function MonitorDashboard() {
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const layout = useIsDesktop();
   const desktop = layout === true;
+  const stageHeight = useStageHeight();
 
 
   const visible = useMemo(() => filters.apply(feed.signals), [filters, feed.signals]);
@@ -82,7 +84,13 @@ export function MonitorDashboard() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex h-[100svh] flex-col overflow-hidden bg-background md:h-screen">
+      {/* Desktop is laid out against the height the window had at this width
+          (see useStageHeight); a shorter window scrolls rather than squeezes. */}
+      <div className="h-[100svh] overflow-y-auto bg-background md:h-screen">
+      <div
+        className="flex h-[100svh] flex-col overflow-hidden bg-background md:h-(--stage-h,100vh)"
+        style={desktop && stageHeight ? ({ "--stage-h": `${stageHeight}px` } as React.CSSProperties) : undefined}
+      >
         <MonitorNav
           signals={feed.signals}
           onPickSignal={openSignal}
@@ -222,6 +230,7 @@ export function MonitorDashboard() {
           <span className="hidden sm:inline">{visible.length} SIGNALS · {filters.window} · {filters.region.toUpperCase()}</span>
           <a href="/privacy" className="ml-auto hover:text-foreground">PRIVACY</a>
         </footer>
+      </div>
       </div>
     </TooltipProvider>
   );

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { stateRings } from "@/lib/monitor/stateShapes";
 import {
   ChartLine,
   ExternalLink,
@@ -135,26 +136,63 @@ function EvidenceCards({ signal }: { signal: Signal }) {
   );
 }
 
+const INSET = { width: 400, height: 160, pad: 14 };
+
+// The whole state around the signal, fitted to the box. The longitude is
+// squeezed by cos(latitude) so the state keeps its shape.
 function MapInset({ signal }: { signal: Signal }) {
+  const [rings, setRings] = useState<[number, number][][]>([]);
+  const state = signal.state;
+  useEffect(() => {
+    let cancelled = false;
+    stateRings(state).then((r) => {
+      if (!cancelled) setRings(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state]);
+
+  const shape = useMemo(() => {
+    if (signal.lat === null || signal.lng === null || rings.length === 0) return null;
+    const k = Math.cos((signal.lat * Math.PI) / 180);
+    const pts = rings.flat();
+    const xs = pts.map(([lng]) => lng * k);
+    const ys = pts.map(([, lat]) => lat);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const scale = Math.min(
+      (INSET.width - INSET.pad * 2) / (x1 - x0 || 1),
+      (INSET.height - INSET.pad * 2) / (y1 - y0 || 1),
+    );
+    const ox = (INSET.width - (x1 - x0) * scale) / 2;
+    const oy = (INSET.height - (y1 - y0) * scale) / 2;
+    const at = (lng: number, lat: number): [number, number] => [ox + (lng * k - x0) * scale, oy + (y1 - lat) * scale];
+    const d = rings
+      .map((ring) => ring.map(([lng, lat], i) => `${i === 0 ? "M" : "L"}${at(lng, lat).map((n) => n.toFixed(1)).join(" ")}`).join(" ") + " Z")
+      .join(" ");
+    return { d, marker: at(signal.lng, signal.lat) };
+  }, [rings, signal.lat, signal.lng]);
+
   if (signal.lat === null || signal.lng === null) return null;
+  const tone = SEVERITY[signal.severity];
   return (
-    <div className="relative h-40 overflow-hidden rounded-lg border border-border bg-card/60">
-      <div
-        aria-hidden
-        className="absolute inset-0"
-        style={{ background: "radial-gradient(50% 50% at 50% 50%, rgba(45,212,191,0.14), transparent 70%)" }}
-      />
-      <div className="absolute inset-0 grid place-items-center">
-        <span className="relative grid place-items-center">
-          <span
-            className="absolute size-12 rounded-full"
-            style={{ background: SEVERITY[signal.severity].glow }}
-          />
-          <span className="size-3 rounded-full" style={{ background: SEVERITY[signal.severity].marker }} />
-        </span>
-      </div>
-      <p className="absolute bottom-2 left-2 font-mono text-[9px] tracking-[0.15em] text-muted-foreground">
-        {signal.place.toUpperCase()} · {signal.lat.toFixed(2)}°N {signal.lng.toFixed(2)}°E
+    <div className="relative h-40 overflow-hidden rounded-lg border border-border bg-background">
+      {shape ? (
+        <svg viewBox={`0 0 ${INSET.width} ${INSET.height}`} className="size-full" role="img" aria-label={`${signal.place}, ${signal.state}`}>
+          <path d={shape.d} fill="var(--card)" stroke="var(--map-line, #2dd4bf)" strokeOpacity={0.7} strokeWidth={1.4} strokeLinejoin="round" />
+          <circle cx={shape.marker[0]} cy={shape.marker[1]} r={14} fill={tone.glow} />
+          <circle cx={shape.marker[0]} cy={shape.marker[1]} r={4.5} fill={tone.marker} />
+        </svg>
+      ) : (
+        <div className="absolute inset-0 grid place-items-center">
+          <span className="relative grid place-items-center">
+            <span className="absolute size-12 rounded-full" style={{ background: tone.glow }} />
+            <span className="size-3 rounded-full" style={{ background: tone.marker }} />
+          </span>
+        </div>
+      )}
+      <p className="absolute bottom-1.5 left-1.5 rounded bg-background/85 px-1.5 py-0.5 font-mono text-[9px] tracking-[0.15em] text-muted-foreground">
+        {signal.place.toUpperCase()} · {signal.state.toUpperCase()} · {signal.lat.toFixed(2)}°N {signal.lng.toFixed(2)}°E
       </p>
     </div>
   );

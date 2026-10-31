@@ -13,6 +13,7 @@ import { usePrefersReducedMotion } from "@/lib/landing/usePrefersReducedMotion";
 // mapping library.
 
 const BOUNDARY = "/landing/globe/india-boundary.geojson";
+const STATES = "/landing/globe/india-states.geojson";
 const LNG_SCALE = Math.cos((22.5 * Math.PI) / 180);
 
 // The drawing box. Fixed so markers and paths share one coordinate space.
@@ -78,6 +79,7 @@ export function IndiaMap({
   className?: string;
 }) {
   const [paths, setPaths] = useState<MapPath[] | null>(null);
+  const [statePaths, setStatePaths] = useState<MapPath[]>([]);
   const [zoom, setZoom] = useState(1);
   const reducedMotion = usePrefersReducedMotion();
   const gridId = useId();
@@ -116,6 +118,20 @@ export function IndiaMap({
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch(STATES)
+      .then((res) => res.json())
+      .then((geo: GeoJson) => {
+        if (!cancelled) setStatePaths(toPaths(geo).filter((p) => !p.islet));
+      })
+      // Internal borders are a refinement; the country outline stands alone.
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const located = useMemo(() => signals.filter((s) => s.lat !== null && s.lng !== null), [signals]);
 
   // One name per place, however many signals it has: the worst severity
@@ -133,6 +149,17 @@ export function IndiaMap({
     return [...byPlace.values()].sort((a, b) => a.rank - b.rank);
   }, [located]);
 
+  const worstAt = useMemo(() => {
+    const byPlace = new Map<string, Signal>();
+    for (const signal of located) {
+      const known = byPlace.get(signal.place);
+      if (!known || SEVERITY_ORDER.indexOf(signal.severity) < SEVERITY_ORDER.indexOf(known.severity)) {
+        byPlace.set(signal.place, signal);
+      }
+    }
+    return byPlace;
+  }, [located]);
+
   const labels = useMemo(
     () => layoutLabels(places.map((p) => ({ key: p.text, ...p })), LABEL_PX / scale, VIEW),
     [places, scale],
@@ -140,12 +167,12 @@ export function IndiaMap({
   const selectedPlace = located.find((s) => s.id === selectedId)?.place ?? null;
 
   return (
-    <div ref={frameRef} className={`relative overflow-hidden rounded-xl border border-border bg-card/80 backdrop-blur-sm ${className}`}>
+    <div ref={frameRef} className={`relative overflow-hidden rounded-xl border border-border bg-background ${className}`}>
       {/* Soft teal glow behind the country. */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
-        style={{ background: "radial-gradient(60% 55% at 50% 45%, var(--map-glow, rgba(45,212,191,0.12)), transparent 70%)" }}
+        style={{ background: "radial-gradient(60% 55% at 50% 45%, var(--map-glow, rgba(45,212,191,0.12)), transparent 55%)" }}
       />
 
       <svg
@@ -161,6 +188,20 @@ export function IndiaMap({
           </pattern>
 
         </defs>
+
+        {/* The land sits on a lighter base than the dimmed surround, so the
+            country stands out from the sea around it. */}
+        {paths?.map(({ d, islet }, i) =>
+          islet ? null : <path key={`base-${i}`} d={d} fill="var(--card)" />,
+        )}
+
+        {statePaths.length > 0 && (
+          <g aria-hidden fill="none" stroke="var(--map-line, #2dd4bf)" strokeOpacity={0.5} strokeWidth={1.1} strokeLinejoin="round">
+            {statePaths.map(({ d }, i) => (
+              <path key={i} d={d} />
+            ))}
+          </g>
+        )}
 
         {paths && paths.length > 0 && (
           <>
@@ -237,17 +278,27 @@ export function IndiaMap({
         {labels.map((label) => {
           const isSelected = label.text === selectedPlace;
           return (
-            <g key={label.key} className="pointer-events-none">
+            // Clicking a name opens the same signal as its marker (the
+            // place's most severe one). Keyboard users already have the markers.
+            <g
+              key={label.key}
+              aria-hidden
+              className="cursor-pointer"
+              onClick={() => {
+                const signal = worstAt.get(label.text);
+                if (signal) onSelect(signal);
+              }}
+            >
               <text
                 x={label.x}
                 y={label.y}
                 textAnchor={label.anchor}
-                className="fill-foreground font-medium"
+                className="fill-foreground font-semibold"
                 style={{
                   fontSize: (isSelected ? LABEL_PX + 2 : LABEL_PX) / scale,
                   paintOrder: "stroke",
                   stroke: "var(--card)",
-                  strokeWidth: 3 / scale,
+                  strokeWidth: 6 / scale,
                   strokeLinejoin: "round",
                 }}
               >
