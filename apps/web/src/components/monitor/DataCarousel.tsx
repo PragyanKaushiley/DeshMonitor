@@ -80,7 +80,7 @@ export function DataCarousel({
             type="button"
             aria-label="Previous data cards"
             onClick={() => step("prev")}
-            className="grid size-9 place-items-center md:size-6 rounded-md border border-border text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400"
+            className="grid size-9 place-items-center lg:size-6 rounded-md border border-border text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400"
           >
             <ChevronLeft aria-hidden className="size-3.5" />
           </button>
@@ -88,7 +88,7 @@ export function DataCarousel({
             type="button"
             aria-label="Next data cards"
             onClick={() => step("next")}
-            className="grid size-9 place-items-center md:size-6 rounded-md border border-border text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400"
+            className="grid size-9 place-items-center lg:size-6 rounded-md border border-border text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400"
           >
             <ChevronRight aria-hidden className="size-3.5" />
           </button>
@@ -107,7 +107,7 @@ export function DataCarousel({
             setApi={setApi}
             opts={opts}
             plugins={plugins}
-            className="h-full"
+            className="h-full [&_[data-slot=carousel-content]]:h-full"
           >
             <CarouselContent className="-ml-3 h-full">
               {cards.map((card) => (

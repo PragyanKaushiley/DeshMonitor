@@ -33,7 +33,7 @@ export function HomePage() {
   }, []);
 
   return (
-    <main className="relative">
+    <main id="main" tabIndex={-1} className="relative outline-none">
       {/* Mounted immediately (not after the loader) so the globe is already
           built beneath the loader and the wordmark has a real target. */}
       {/* Inert until the loader is gone: it covers the page, so nothing

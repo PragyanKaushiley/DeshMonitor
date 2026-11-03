@@ -91,6 +91,7 @@
 
 :root {
   /* Animated gradient text: two close hues, dark enough on light surfaces. */
+  --focus-ring: #0f766e;
   --grad-from: #0f766e;
   --grad-to: #0369a1;
   --background: oklch(1 0 0);
@@ -131,6 +132,7 @@
 }
 
 .dark {
+  --focus-ring: #5eead4;
   --grad-from: #5eead4;
   --grad-to: #7dd3fc;
   --light-ray: rgba(94, 234, 212, 0.2);
@@ -315,4 +317,45 @@
   --color-amber-400: #8f5206;
   background-color: var(--background);
   color: var(--foreground);
+}
+
+/* A clear keyboard focus ring for anything that doesn't set its own. :where()
+   keeps the specificity at zero, so components that style their own focus
+   (or use outline-none on purpose) are untouched. */
+@layer base {
+  :where(a, button, summary, input, select, textarea, [role="button"], [role="checkbox"]):focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+
+/* Dropdown lists (the region picker has 40 entries) show a scroll bar. Radix
+   hides the one on its select viewport; this puts back a slim, themed one that
+   stays visible, so the list is plainly scrollable. */
+[data-radix-select-viewport] {
+  scrollbar-width: auto !important;
+}
+[data-radix-select-viewport]::-webkit-scrollbar {
+  display: block !important;
+  width: 10px;
+}
+[data-radix-select-viewport]::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-radix-select-viewport]::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--foreground) 32%, transparent);
+  background-clip: content-box;
+  border: 3px solid transparent;
+  border-radius: 9999px;
+}
+[data-radix-select-viewport]::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--foreground) 52%, transparent);
+  background-clip: content-box;
+}
+@supports (-moz-appearance: none) {
+  [data-radix-select-viewport] {
+    scrollbar-width: thin !important;
+    scrollbar-color: color-mix(in oklab, var(--foreground) 32%, transparent) transparent;
+  }
 }

@@ -43,13 +43,20 @@ function Rows({ rows }: { rows: DataCard["rows"] }) {
   return (
     <ul className="flex flex-col gap-1.5">
       {rows.map((row) => (
-        <li key={row.label} className="flex items-baseline gap-2">
-          <span className="font-mono text-[10px] tracking-[0.15em] text-muted-foreground">{row.label}</span>
-          <span className="ml-auto font-mono text-[11px] tabular-nums text-foreground">
-            <Money value={row.value} />
-            {row.note ? <span className="ml-1 text-muted-foreground">{row.note}</span> : null}
+        // The value and its change travel together: when they don't fit
+        // beside the label (a small card), the pair drops to its own line
+        // instead of the label and the unit each wrapping.
+        <li key={row.label} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="font-mono text-[10px] tracking-[0.15em] whitespace-nowrap text-muted-foreground">
+            {row.label}
           </span>
-          <Change value={row.change} />
+          <span className="ml-auto flex items-baseline gap-2 whitespace-nowrap">
+            <span className="font-mono text-[11px] tabular-nums text-foreground">
+              <Money value={row.value} />
+              {row.note ? <span className="ml-1 text-muted-foreground">{row.note}</span> : null}
+            </span>
+            <Change value={row.change} />
+          </span>
         </li>
       ))}
     </ul>

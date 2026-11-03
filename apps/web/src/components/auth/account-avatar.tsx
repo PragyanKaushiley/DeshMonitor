@@ -29,7 +29,7 @@ export function AccountAvatar({
       aria-expanded={expanded}
       aria-label={user ? `Account: ${user.email}` : "Log in or sign up"}
       className={cn(
-        "grid size-8 place-items-center rounded-full transition-colors outline-none",
+        "relative grid size-8 place-items-center rounded-full transition-colors outline-none after:absolute after:-inset-1.5 after:content-['']",
         "focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-teal-400",
         user
           ? "bg-card font-display text-[15px] leading-none text-foreground ring-1 ring-teal-700 transition-shadow hover:ring-4 hover:ring-teal-700/25 dark:ring-teal-400 dark:hover:ring-teal-400/25"

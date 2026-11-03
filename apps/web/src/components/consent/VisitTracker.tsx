@@ -35,21 +35,24 @@ export function VisitTracker({ enabled = true }: { enabled?: boolean }) {
   return (
     <section
       aria-labelledby="consent-title"
-      className="fixed inset-x-4 bottom-4 z-40 mx-auto max-w-md rounded-xl border border-border bg-background/95 p-4 text-left shadow-lg backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2 duration-500 sm:inset-x-auto sm:bottom-6 sm:left-6"
+      className="fixed inset-x-4 bottom-4 z-40 mx-auto max-w-md rounded-xl border border-border bg-background/95 p-3 text-left sm:p-4 shadow-lg backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2 duration-500 sm:inset-x-auto sm:bottom-6 sm:left-6"
     >
       <h2 id="consent-title" className="font-mono text-[11px] tracking-[0.2em] text-foreground">
         YOUR PRIVACY
       </h2>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-1.5 text-xs leading-snug text-muted-foreground sm:mt-2 sm:text-sm sm:leading-relaxed">
         With your permission, we record your visit — including your IP address, approximate location and device — to
-        understand who uses this site. Logging in sets a cookie that keeps you signed in, and the site saves your theme
-        and this choice on your device. Those are needed for the site to work, so they don&apos;t depend on this
-        choice.{" "}
+        understand who uses this site.{" "}
+        {/* The rest is on the privacy page; on a phone it would fill half the screen. */}
+        <span className="max-sm:hidden">
+          Logging in sets a cookie that keeps you signed in, and the site saves your theme and this choice on your
+          device. Those are needed for the site to work, so they don&apos;t depend on this choice.{" "}
+        </span>
         <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
           Privacy policy
         </Link>
       </p>
-      <div className="mt-4 flex justify-end gap-2">
+      <div className="mt-3 flex justify-end gap-2 sm:mt-4">
         <button
           type="button"
           onClick={() => choose("declined")}

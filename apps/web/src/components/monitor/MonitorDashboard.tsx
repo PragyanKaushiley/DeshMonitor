@@ -13,7 +13,7 @@ import type { CategoryId, Signal } from "@/lib/monitor/types";
 import { PanelGrid } from "./PanelGrid";
 import { DataCarousel } from "./DataCarousel";
 import { IndiaMap } from "./IndiaMap";
-import { LayersPanel, MapHeader, TimeRangeBox } from "./MapControls";
+import { LayersPanel, MapHeader, MobileControls, TimeRangeBox } from "./MapControls";
 import { MonitorNav } from "./MonitorNav";
 import { SignalDetail } from "./SignalDetail";
 import { SignalsPanel } from "./SignalsPanel";
@@ -26,6 +26,9 @@ export function MonitorDashboard() {
   // The signals list's scroll container. A new signal may only push the
   // list down while it is at the top; otherwise it queues behind the pill.
   const listViewportRef = useRef<HTMLDivElement>(null);
+  // The list scrolls inside its own box on a phone too, so a new row can
+  // never push the page around; it just waits behind the pill unless the
+  // reader is at the top of the list.
   const canInsert = useCallback(() => (listViewportRef.current?.scrollTop ?? 0) < 8, []);
   const feed = useMonitorFeed(canInsert);
   const filters = useSignalFilters();
@@ -50,7 +53,6 @@ export function MonitorDashboard() {
     const target = (id && document.querySelector<HTMLElement>(`[data-signal-id="${id}"]`)) || opener;
     target?.focus({ preventScroll: true });
   }, []);
-  const [mobileExpanded, setMobileExpanded] = useState(false);
   const layout = useIsDesktop();
   const desktop = layout === true;
   const stageHeight = useStageHeight();
@@ -72,12 +74,11 @@ export function MonitorDashboard() {
 
   const breadcrumb = useMemo(() => {
     const region = filters.region === "All India" ? "ALL INDIA" : filters.region.toUpperCase();
-    const cats = filters.allOn
-      ? "ALL CATEGORIES"
-      : [...filters.active]
-          .map((id) => CATEGORIES.find((c) => c.id === id)?.name.toUpperCase())
-          .filter(Boolean)
-          .join(", ");
+    const named = [...filters.active]
+      .map((id) => CATEGORIES.find((c) => c.id === id)?.name.toUpperCase())
+      .filter(Boolean)
+      .join(", ");
+    const cats = filters.allOn ? "ALL CATEGORIES" : named || "NO CATEGORIES";
     return `${region} / ${cats} · ${visible.length} SIGNAL${visible.length === 1 ? "" : "S"}`;
   }, [filters.region, filters.allOn, filters.active, visible.length]);
 
@@ -89,8 +90,6 @@ export function MonitorDashboard() {
       .slice(0, 3);
   }, [selected, feed.signals]);
 
-  const mobileSignals = mobileExpanded ? visible : visible.slice(0, 4);
-
   // The screen width isn't known until after mount; showing either layout
   // before then makes the page jump, so the loader holds the place. It is
   // always the second child, so it stays mounted from first paint to the
@@ -101,9 +100,9 @@ export function MonitorDashboard() {
     <TooltipProvider delayDuration={200}>
       {/* Desktop is laid out against the height the window had at this width
           (see useStageHeight); a shorter window scrolls rather than squeezes. */}
-      <ScrollArea className="h-[100svh] bg-background md:h-screen" viewportClassName="[&>div]:block!">
+      <ScrollArea className="h-[100svh] bg-background lg:h-screen" viewportClassName="[&>div]:block!">
       <div
-        className="flex h-[100svh] flex-col overflow-hidden bg-background md:h-(--stage-h,100vh)"
+        className="flex h-[100svh] flex-col overflow-hidden bg-background lg:h-(--stage-h,100vh)"
         style={desktop && stageHeight ? ({ "--stage-h": `${stageHeight}px` } as React.CSSProperties) : undefined}
       >
         <MonitorNav
@@ -116,7 +115,7 @@ export function MonitorDashboard() {
         {/* Desktop: the map and its conditions row, beside the signals list.
             Exactly one viewport tall. */}
         {desktop && (
-        <div className="flex min-h-0 flex-1 gap-3 px-3 pt-3">
+        <div id="main" role="main" tabIndex={-1} className="relative flex min-h-0 flex-1 gap-3 px-3 pt-3 outline-none">
           <section aria-label="Map" className="flex min-w-0 flex-[58] flex-col overflow-hidden rounded-xl border border-teal-500/50 bg-card/40 shadow-(--shadow-card)">
             <MapHeader filters={filters} count={visible.length} />
             <div className="relative min-h-0 flex-1">
@@ -128,6 +127,8 @@ export function MonitorDashboard() {
                 pulseId={feed.lastInsertedId}
                 breadcrumb={breadcrumb}
                 onLoaded={onMapLoaded}
+                region={filters.region}
+                onResetRegion={() => filters.setRegion("All India")}
               />
               <TimeRangeBox filters={filters} />
               <LayersPanel filters={filters} signals={visible} />
@@ -150,18 +151,19 @@ export function MonitorDashboard() {
               <PanelGrid cards={feed.cards} ready={feed.ready} />
             </div>
           </ScrollArea>
+
         </div>
         )}
 
         {/* Mobile: one column, the page scrolls. */}
         {!desktop && (
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
+        <div id="main" role="main" tabIndex={-1} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 outline-none">
           <div className="scroll-fade-x flex shrink-0 gap-1.5 overflow-x-auto pb-1 [--scroll-fade:1.5rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button
               type="button"
               onClick={() => filters.clear()}
               aria-pressed={filters.allOn}
-              className={`shrink-0 rounded-full border px-3 py-1 font-mono text-[10px] tracking-[0.15em] transition-colors ${
+              className={`flex min-h-10 shrink-0 items-center rounded-full border px-3 font-mono text-[10px] tracking-[0.15em] transition-colors ${
                 filters.allOn ? "border-teal-500/50 bg-teal-500/10 text-teal-400" : "border-border text-muted-foreground"
               }`}
             >
@@ -175,7 +177,7 @@ export function MonitorDashboard() {
                   type="button"
                   onClick={() => (on && filters.active.size === 1 ? filters.clear() : filters.only(meta.id))}
                   aria-pressed={on}
-                  className={`shrink-0 rounded-full border px-3 py-1 font-mono text-[10px] tracking-[0.15em] transition-colors ${
+                  className={`flex min-h-10 shrink-0 items-center rounded-full border px-3 font-mono text-[10px] tracking-[0.15em] transition-colors ${
                     on ? "border-teal-500/50 bg-teal-500/10 text-teal-400" : "border-border text-muted-foreground"
                   }`}
                 >
@@ -185,6 +187,8 @@ export function MonitorDashboard() {
             })}
           </div>
 
+          <MobileControls filters={filters} />
+
           <IndiaMap
             className="h-[350px] shrink-0"
             signals={visible}
@@ -193,11 +197,13 @@ export function MonitorDashboard() {
             pulseId={feed.lastInsertedId}
             breadcrumb={breadcrumb}
             onLoaded={onMapLoaded}
+                region={filters.region}
+                onResetRegion={() => filters.setRegion("All India")}
           />
 
           <SignalsPanel
-            className="shrink-0"
-            signals={mobileSignals}
+            className="h-[420px] shrink-0"
+            signals={visible}
             ready={feed.ready}
             filters={filters}
             selectedId={selected?.id ?? null}
@@ -207,15 +213,6 @@ export function MonitorDashboard() {
             viewportRef={listViewportRef}
           />
 
-          {feed.ready && visible.length > mobileSignals.length && (
-            <button
-              type="button"
-              onClick={() => setMobileExpanded(true)}
-              className="shrink-0 rounded-lg border border-border py-2.5 font-mono text-[10px] tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              VIEW ALL {visible.length} SIGNALS →
-            </button>
-          )}
           {!filters.allOn && (
             <button
               type="button"
@@ -230,7 +227,9 @@ export function MonitorDashboard() {
             </button>
           )}
 
-          <DataCarousel className="h-[190px] shrink-0" cards={feed.cards} ready={feed.ready} cardWidth={280} />
+          {/* Tall enough for the tallest card (Markets, about 206px) plus the
+              carousel's own header, so no card is cut off at the bottom. */}
+          <DataCarousel className="h-[264px] shrink-0" cards={feed.cards} ready={feed.ready} cardWidth={280} />
         </div>
         )}
 
@@ -245,7 +244,7 @@ export function MonitorDashboard() {
         <footer className="flex shrink-0 items-center gap-4 px-4 py-1.5 font-mono text-[9px] tracking-[0.2em] text-muted-foreground/80">
           <span>SAMPLE DATA</span>
           <span className="hidden sm:inline">{visible.length} SIGNALS · {filters.window} · {filters.region.toUpperCase()}</span>
-          <a href="/privacy" className="ml-auto hover:text-foreground">PRIVACY</a>
+          <a href="/privacy" className="relative ml-auto hover:text-foreground after:absolute after:-inset-x-3 after:-inset-y-3 after:content-['']">PRIVACY</a>
         </footer>
       </div>
       </ScrollArea>
@@ -267,20 +266,20 @@ export function MonitorSkeleton({ fading = false }: { fading?: boolean }) {
     >
       <div className="flex shrink-0 items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Skeleton className="h-5 w-32" />
-        <Skeleton className="hidden h-8 max-w-md flex-1 md:block" />
+        <Skeleton className="hidden h-8 max-w-md flex-1 lg:block" />
         <Skeleton className="size-8 rounded-full" />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-3 pt-3 pb-3 md:flex-row md:pb-0">
-        <div className="flex min-w-0 flex-col gap-3 md:flex-[58]">
-          <Skeleton className="h-8 w-full shrink-0 md:hidden" />
-          <Skeleton className="h-[350px] shrink-0 rounded-xl md:h-full md:flex-1" />
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-3 pt-3 pb-3 lg:flex-row lg:pb-0">
+        <div className="flex min-w-0 flex-col gap-3 lg:flex-[58]">
+          <Skeleton className="h-8 w-full shrink-0 lg:hidden" />
+          <Skeleton className="h-[350px] shrink-0 rounded-xl lg:h-full lg:flex-1" />
         </div>
 
-        <div className="flex min-w-0 flex-col gap-3 md:flex-[42]">
-          <Skeleton className="h-[260px] shrink-0 rounded-xl md:h-[440px]" />
-          <div className="hidden grid-cols-2 gap-3 md:grid">
-            {Array.from({ length: 4 }, (_, i) => (
+        <div className="flex min-w-0 flex-col gap-3 lg:flex-[42]">
+          <Skeleton className="h-[260px] shrink-0 rounded-xl lg:h-[440px]" />
+          <div className="hidden grid-cols-2 gap-3 lg:grid">
+            {Array.from({ length: 8 }, (_, i) => (
               <Skeleton key={i} className="h-44 rounded-xl" />
             ))}
           </div>

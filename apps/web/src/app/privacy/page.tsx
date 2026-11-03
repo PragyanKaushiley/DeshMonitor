@@ -25,7 +25,7 @@ export default function PrivacyPage() {
   return (
     <>
       <LandingNav sceneLabel="PRIVACY" />
-      <main className="mx-auto w-full max-w-2xl space-y-10 px-6 pt-32 pb-24">
+      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-2xl space-y-10 px-6 pt-32 pb-24 outline-none">
         <header className="space-y-3">
           <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground">LAST UPDATED SEPTEMBER 2026</p>
           <h1 className="font-display text-4xl text-foreground sm:text-5xl">Privacy policy</h1>

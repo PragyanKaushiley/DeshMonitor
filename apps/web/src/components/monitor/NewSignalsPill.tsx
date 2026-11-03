@@ -8,7 +8,7 @@ import { ArrowUp } from "lucide-react";
 export function NewSignalsPill({ count, onClick }: { count: number; onClick: () => void }) {
   if (count === 0) return null;
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center">
+    <div className="pointer-events-none absolute inset-x-0 top-14 z-20 flex justify-center">
       <button
         type="button"
         onClick={onClick}

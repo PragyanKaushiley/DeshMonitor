@@ -1,6 +1,6 @@
 "use client";
 
-
+import { useEffect } from "react";
 import { AnimatePresence } from "motion/react";
 import { AnimatedListItem } from "@/components/ui/animated-list";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,6 +25,7 @@ export function SignalsPanel({
   queuedCount,
   onReleaseQueued,
   viewportRef,
+  total,
   className = "",
 }: {
   signals: Signal[];
@@ -35,10 +36,20 @@ export function SignalsPanel({
   queuedCount: number;
   onReleaseQueued: () => void;
   viewportRef: React.RefObject<HTMLDivElement | null>;
+  // How many signals match the filters, when `signals` is only the first few
+  // of them (the phone layout shows four until you ask for all).
+  total?: number;
   className?: string;
 }) {
   const reducedMotion = usePrefersReducedMotion();
 
+  // A different set of signals starts at the top. Otherwise a list that was
+  // scrolled to the bottom keeps its position when a filter narrows it, and
+  // shows only the last few entries until you scroll back up.
+  const activeKey = [...filters.active].sort().join(",");
+  useEffect(() => {
+    viewportRef.current?.scrollTo({ top: 0 });
+  }, [filters.region, filters.window, activeKey, viewportRef]);
   function releaseAndScroll() {
     viewportRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     // Let the scroll settle so the insertion animation is actually seen.
@@ -54,17 +65,20 @@ export function SignalsPanel({
 
       <header className="flex shrink-0 items-center gap-2 px-4 pt-4 pb-3">
         <h2 className="font-mono text-[11px] tracking-[0.2em] text-foreground">SIGNALS</h2>
-        <span className="rounded border border-teal-500/30 bg-teal-500/5 px-1.5 py-0.5 font-mono text-[9px] tracking-[0.15em] text-teal-400">
+        <span className="rounded border border-teal-500/30 bg-teal-500/5 px-1.5 py-0.5 font-mono text-[9px] tracking-[0.15em] whitespace-nowrap text-teal-400 max-sm:hidden">
           LINKED TO MAP
         </span>
-        <span className="ml-auto font-mono text-[10px] tracking-[0.15em] text-muted-foreground">
-          {signals.length} ACTIVE · {filters.window}
+        <span className="ml-auto font-mono text-[10px] tracking-[0.15em] whitespace-nowrap text-muted-foreground">
+          {total ?? signals.length} ACTIVE · {filters.window}
         </span>
       </header>
 
       <NewSignalsPill count={queuedCount} onClick={releaseAndScroll} />
 
-      <ScrollArea className="min-h-0 flex-1" viewportRef={viewportRef} viewportClassName="px-2 py-2 [&>div]:block!">
+      <ScrollArea className="min-h-0 flex-1" viewportRef={viewportRef} // overscroll-contain: at the end of the list, further scrolling must not
+        // carry on into the column or page around it, which slid the whole list
+        // out of view.
+        viewportClassName="overscroll-contain px-2 py-2 [&>div]:block!">
         {!ready ? (
           <div className="flex flex-col gap-2 px-1">
             {Array.from({ length: 6 }, (_, i) => (

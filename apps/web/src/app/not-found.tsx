@@ -11,7 +11,7 @@ export default function NotFound() {
   return (
     <>
       <LandingNav sceneLabel="SIGNAL LOST" showProgress={false} />
-      <main className="relative flex min-h-svh flex-col items-center justify-center gap-4 overflow-hidden bg-background p-8 text-center">
+      <main id="main" tabIndex={-1} className="relative flex min-h-svh outline-none flex-col items-center justify-center gap-4 overflow-hidden bg-background p-8 text-center">
         <SpaceParticles className="absolute inset-0" />
         <p className="relative font-mono text-xs tracking-[0.2em] text-muted-foreground">404</p>
         <h1 className="relative font-display text-4xl sm:text-5xl">Lost in space?</h1>

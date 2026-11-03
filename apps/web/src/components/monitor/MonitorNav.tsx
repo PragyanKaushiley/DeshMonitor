@@ -132,7 +132,7 @@ export function MonitorNav({
         </span>
 
         <div className="flex items-center gap-2">
-          {mounted ? <ThemeTogglerButton variant="ghost" size="sm" /> : <span className="size-9" aria-hidden />}
+          {mounted ? <ThemeTogglerButton variant="ghost" size="sm" className="relative after:absolute after:-inset-1.5 after:content-['']" /> : <span className="size-9" aria-hidden />}
           <AccountDrawer />
         </div>
       </div>

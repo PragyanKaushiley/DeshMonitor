@@ -11,10 +11,14 @@ import { AnimatePresence, motion, type MotionProps } from "motion/react"
 import { cn } from "@/lib/utils"
 
 export function AnimatedListItem({ children }: { children: React.ReactNode }) {
+  // Grows from zero height. (Magic UI's version scaled from 0, but a scaled
+  // box still takes its full height, so a new row left a blank hole in the
+  // list until the spring finished — and for good if the tab was throttled.)
+  // Overflow is only hidden while the height moves, so focus rings aren't clipped.
   const animations: MotionProps = {
-    initial: { scale: 0, opacity: 0 },
-    animate: { scale: 1, opacity: 1, originY: 0 },
-    exit: { scale: 0, opacity: 0 },
+    initial: { height: 0, opacity: 0, scale: 0.96, overflow: "hidden" },
+    animate: { height: "auto", opacity: 1, scale: 1, originY: 0, transitionEnd: { overflow: "visible" } },
+    exit: { height: 0, opacity: 0, scale: 0.96, overflow: "hidden" },
     transition: { type: "spring", stiffness: 350, damping: 40 },
   }
 

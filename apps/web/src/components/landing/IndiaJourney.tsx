@@ -46,7 +46,8 @@ const CATEGORIES = [
     description: "Notifications and institutional activity.",
     Icon: Landmark,
     Art: GovernmentArt,
-    span: "col-span-2",
+    // Beside the CTA tile (the grid's last cell) on every screen size.
+    span: "col-span-1 md:col-span-2",
   },
 ];
 
@@ -109,12 +110,8 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
     // Desktop: the button glides into the tile beside Government & Policy and
     // grows to cover all of it, so the tile is the button. It is centred on
     // its slot (xPercent/yPercent), so changing its width and height only
-    // moves it by the difference between the two centres. Phones hide that
-    // tile, so the button just fades with the copy.
+    // moves it by the difference between the two centres.
     function ctaTarget() {
-      if (section!.clientWidth < 768) {
-        return { x: 0, y: -12, opacity: 0, width: ctaSlot!.offsetWidth, height: ctaSlot!.offsetHeight };
-      }
       const gx = gridWrap!.offsetLeft + ctaTile!.offsetLeft + ctaTile!.offsetWidth / 2;
       const gy = gridWrap!.offsetTop + ctaTile!.offsetTop + ctaTile!.offsetHeight / 2;
       return {
@@ -252,7 +249,7 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
           href="/monitor?utm_source=deshmonitor&utm_medium=landing&utm_campaign=enter_monitor&utm_content=bento_tile"
           tabIndex={-1}
           aria-hidden
-          className={`invisible hidden md:block ${rm ? "md:hidden" : ""}`}
+          className={`invisible ${rm ? "hidden" : "block"}`}
         />
       </BentoGrid>
     </div>
@@ -324,9 +321,14 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
         <div ref={ctaSlotRef} className="relative -mt-2">
           <span
             aria-hidden
-            className="invisible inline-flex gap-2 border px-6 py-3 font-display text-sm tracking-[0.2em] whitespace-nowrap sm:text-base"
+            className="invisible inline-flex gap-2 border px-6 py-3 font-display text-sm tracking-[0.2em] whitespace-nowrap sm:text-base md:max-[900px]:text-xs md:max-[900px]:tracking-[0.12em]"
           >
-            ENTER <Desh tooltip={false} /> MONITOR →
+            <span className="max-md:flex max-md:flex-col max-md:items-center max-md:text-center max-md:leading-snug">
+              <span>
+                ENTER <Desh tooltip={false} />
+              </span>{" "}
+              <span>MONITOR →</span>
+            </span>
           </span>
           <div ref={ctaRef} className="absolute top-1/2 left-1/2 z-20 size-full">
             {/* Display-font caps like the nav wordmark: देश has no glyphs in
@@ -338,11 +340,17 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
               spark={false}
               // The same raised look as the bento tiles: a soft layered shadow
               // on light, a lit inner edge on dark.
-              className="size-full gap-2 border-0 font-display text-sm tracking-[0.2em] text-foreground [box-shadow:0_0_0_1px_rgba(0,0,0,.03),0_2px_4px_rgba(0,0,0,.05),0_12px_24px_rgba(0,0,0,.05)] backdrop-blur-sm sm:text-base dark:border dark:border-white/10 dark:[box-shadow:0_-20px_80px_-20px_#ffffff1f_inset]"
+              className="size-full gap-2 border-0 font-display text-sm tracking-[0.2em] text-foreground [box-shadow:0_0_0_1px_rgba(0,0,0,.03),0_2px_4px_rgba(0,0,0,.05),0_12px_24px_rgba(0,0,0,.05)] backdrop-blur-sm sm:text-base md:max-[900px]:text-xs md:max-[900px]:tracking-[0.12em] dark:border dark:border-white/10 dark:[box-shadow:0_-20px_80px_-20px_#ffffff1f_inset]"
             >
-              <span>
-                ENTER <Desh tooltip={false} /> MONITOR
-                <span aria-hidden> →</span>
+              {/* One line on a wide screen, two on a phone (the tile is half the width). */}
+              <span className="max-md:flex max-md:flex-col max-md:items-center max-md:text-center max-md:leading-snug">
+                <span>
+                  ENTER <Desh tooltip={false} />
+                </span>{" "}
+                <span>
+                  MONITOR
+                  <span aria-hidden> →</span>
+                </span>
               </span>
               {/* The bento tiles' animated edge and hover tint. */}
               <ShineBorder shineColor={SHINE_COLORS} />

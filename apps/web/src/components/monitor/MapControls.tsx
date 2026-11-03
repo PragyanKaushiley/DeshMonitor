@@ -17,6 +17,14 @@ import type { SignalFilters } from "@/lib/monitor/useSignalFilters";
 // collapsible LAYERS checklist. The categories are the same filter state the
 // signals list reads.
 
+// The region list opens straight below its trigger at one fixed size, whichever
+// state is picked and wherever the trigger sits (the default places the list
+// around the chosen item, so its size and position kept changing). It is
+// shorter than the 40 entries, so it always scrolls, and shows a scroll bar;
+// only in a very short window does it shrink to fit.
+const REGION_LIST =
+  "h-[min(18rem,var(--radix-select-content-available-height))] max-h-[min(18rem,var(--radix-select-content-available-height))] w-(--radix-select-trigger-width)";
+
 export function MapHeader({ filters, count }: { filters: SignalFilters; count: number }) {
   return (
     <div className="flex shrink-0 items-center gap-3 border-b border-border px-3 py-1.5">
@@ -28,7 +36,7 @@ export function MapHeader({ filters, count }: { filters: SignalFilters; count: n
         <SelectTrigger size="sm" className="ml-auto h-7 w-44 border-border bg-card/60 text-xs" aria-label="Region">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent className="max-h-72">
+        <SelectContent position="popper" sideOffset={4} className={REGION_LIST}>
           {REGIONS.map((region) => (
             <SelectItem key={region} value={region} className="text-xs">
               {region}
@@ -116,5 +124,44 @@ export function LayersPanel({ filters, signals }: { filters: SignalFilters; sign
         </ScrollArea>
       </CollapsibleContent>
     </Collapsible>
+  );
+}
+
+// The time range and region, for the phone layout, where the map has no room
+// for the floating boxes and the header strip the desktop uses.
+export function MobileControls({ filters }: { filters: SignalFilters }) {
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      <ToggleGroup
+        type="single"
+        value={filters.window}
+        onValueChange={(value) => value && filters.setWindow(value as TimeWindow)}
+        aria-label="Time range"
+        className="h-11 shrink-0 items-stretch rounded-lg border border-border bg-card/80 p-0.5"
+      >
+        {TIME_WINDOWS.map((w) => (
+          <ToggleGroupItem
+            key={w}
+            value={w}
+            aria-label={`Last ${w}`}
+            className="h-full min-w-10 rounded-md px-2 font-mono text-[10px] tracking-[0.15em] data-[state=on]:bg-teal-500 data-[state=on]:text-white"
+          >
+            {w}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+      <Select value={filters.region} onValueChange={filters.setRegion}>
+        <SelectTrigger className="min-w-0 flex-1 border-border bg-card/80 text-xs data-[size=default]:h-11" aria-label="Region">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent position="popper" sideOffset={4} className={REGION_LIST}>
+          {REGIONS.map((region) => (
+            <SelectItem key={region} value={region} className="text-xs">
+              {region}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

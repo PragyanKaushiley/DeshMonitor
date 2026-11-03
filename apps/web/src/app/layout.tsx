@@ -33,6 +33,11 @@ export const metadata: Metadata = {
   },
   description: DESCRIPTION,
   applicationName: SITE_NAME,
+  // The site has its own light and dark themes. The Dark Reader extension
+  // honours this tag and leaves the page alone; without it, it rewrites
+  // inline colours before React hydrates, which logs a hydration mismatch and
+  // darkens a page that is already dark.
+  other: { "darkreader-lock": "true" },
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
@@ -55,6 +60,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* First stop for keyboard users: jumps past the nav to the page itself. */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:rounded-md focus:border focus:border-border focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:text-foreground focus:shadow-lg"
+        >
+          Skip to content
+        </a>
         <ErrorReporter />
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>

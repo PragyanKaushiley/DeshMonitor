@@ -44,10 +44,13 @@ export function MiniCard({
       gradientSize={160}
     >
     <article className="flex h-full flex-col gap-2.5 p-3">
-      <header className="flex items-start gap-2">
+      <header className="flex flex-wrap items-start gap-x-2 gap-y-0.5">
         {Icon && <Icon className="mt-px size-3.5 shrink-0 text-muted-foreground" />}
-        <h3 className="font-mono text-[10px] tracking-[0.2em] text-foreground">{card.title}</h3>
-        <span className="ml-auto shrink-0 font-mono text-[9px] tracking-[0.15em] text-muted-foreground">{card.meta}</span>
+        <h3 className="font-mono text-[10px] tracking-[0.2em] whitespace-nowrap text-foreground">{card.title}</h3>
+        {/* The meta drops under the title when the card is too narrow for both. */}
+        <span className="ml-auto shrink-0 font-mono text-[9px] tracking-[0.15em] whitespace-nowrap text-muted-foreground">
+          {card.meta}
+        </span>
         {onExpand && (
           <button
             type="button"
@@ -90,10 +93,13 @@ function CardBody({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
+    // touch-pan-y: a card is a scroll container of its own, and on a phone the
+    // browser would otherwise claim a sideways swipe that starts on it, so the
+    // carousel it sits in (which listens for the drag itself) never saw it.
     <ScrollArea
-      className="min-h-0 flex-1"
+      className="min-h-0 flex-1 touch-pan-y"
       viewportRef={viewport}
-      viewportClassName={`overscroll-contain [--scroll-fade:1rem] [&>div]:block! ${overflowing ? "scroll-fade-y" : ""}`}
+      viewportClassName={`touch-pan-y overscroll-contain [--scroll-fade:1rem] [&>div]:block! ${overflowing ? "scroll-fade-y" : ""}`}
     >
       <div
         ref={inner}

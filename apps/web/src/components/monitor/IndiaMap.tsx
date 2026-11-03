@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Minus, Plus, Undo2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { SEVERITY, SEVERITY_ORDER } from "@/lib/monitor/categories";
 import { layoutLabels } from "@/lib/monitor/labels";
 import type { Signal } from "@/lib/monitor/types";
 import { usePrefersReducedMotion } from "@/lib/landing/usePrefersReducedMotion";
+import { normStateName, stateRings, stateRingsNow } from "@/lib/monitor/stateShapes";
 
 // India drawn straight from the boundary GeoJSON the landing page already
 // ships — a plain equirectangular projection with longitude squeezed by
@@ -14,7 +16,12 @@ import { usePrefersReducedMotion } from "@/lib/landing/usePrefersReducedMotion";
 // mapping library.
 
 const BOUNDARY = "/landing/globe/india-boundary.geojson";
-const STATES = "/landing/globe/india-states.geojson";
+// The lines where two states meet, and nothing else: the coast is drawn once,
+// from the country outline, so the two never disagree about where it runs.
+const BORDERS = "/landing/globe/india-borders.geojson";
+// For each state, the stretch of the country's outline that touches it (its
+// coast and its international border), as plain lines.
+const COAST = "/landing/globe/india-coast.geojson";
 const LNG_SCALE = Math.cos((22.5 * Math.PI) / 180);
 
 // The drawing box. Fixed so markers and paths share one coordinate space.
@@ -36,12 +43,18 @@ interface GeoJson {
 // a couple of kilometres across — are drawn bolder so they stay visible.
 const ISLET_SIZE = 6;
 
+// How far the map may zoom (the smallest state fills the box at about this).
+const MAX_ZOOM = 9;
+
 // Name size on screen, in pixels.
 const LABEL_PX = 11;
 
 interface MapPath {
   d: string;
   islet: boolean;
+  // Longest side, in drawing units: whether an islet still counts as a speck
+  // depends on how big it is on screen, which changes with the zoom.
+  size: number;
 }
 
 function toPaths(geo: GeoJson): MapPath[] {
@@ -51,9 +64,10 @@ function toPaths(geo: GeoJson): MapPath[] {
     const points = ring.map(([lng, lat]) => project(lng, lat));
     const xs = points.map(([x]) => x);
     const ys = points.map(([, y]) => y);
-    const islet = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) < ISLET_SIZE;
+    const size = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+    const islet = size < ISLET_SIZE;
     const d = points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
-    paths.push({ d: `${d} Z`, islet });
+    paths.push({ d: `${d} Z`, islet, size });
   };
 
   for (const feature of geo.features) {
@@ -64,6 +78,121 @@ function toPaths(geo: GeoJson): MapPath[] {
   return paths;
 }
 
+interface Border {
+  a: string;
+  b: string;
+  d: string;
+}
+
+function linePath(points: [number, number][]): string {
+  return points.map(([lng, lat], i) => `${i === 0 ? "M" : "L"}${project(lng, lat).map((n) => n.toFixed(1)).join(" ")}`).join(" ");
+}
+
+function toBorders(geo: {
+  features: { properties: { a: string; b: string }; geometry: { type: string; coordinates: unknown } }[];
+}): Border[] {
+  return geo.features.map(({ properties, geometry }) => ({
+    a: properties.a,
+    b: properties.b,
+    d:
+      geometry.type === "MultiLineString"
+        ? (geometry.coordinates as [number, number][][]).map(linePath).join(" ")
+        : linePath(geometry.coordinates as [number, number][]),
+  }));
+}
+
+// The land, the state borders and the country outline: hundreds of paths that
+// only change when the zoom does. Stroke widths are set once per group (the
+// paths inherit them), so a zoom rewrites a handful of attributes instead of
+// one on every path, and the memo skips the whole layer when only the region
+// or the signals change.
+const LandLayers = memo(function LandLayers({
+  paths,
+  borders,
+  focusRegion,
+  zoom,
+  pxScale,
+  gridId,
+}: {
+  paths: MapPath[] | null;
+  borders: Border[];
+  focusRegion: string | null;
+  zoom: number;
+  pxScale: number;
+  gridId: string;
+}) {
+  // A landmass is only a speck (drawn as a bold dot) while it is tiny on screen;
+  // zoomed into the islands it is just land again.
+  const { land, specks } = useMemo(() => {
+    const land: { p: MapPath; i: number }[] = [];
+    const specks: { p: MapPath; i: number }[] = [];
+    (paths ?? []).forEach((p, i) => (p.islet && p.size * pxScale < 5 ? specks : land).push({ p, i }));
+    return { land, specks };
+  }, [paths, pxScale]);
+  const focus = focusRegion === null ? null : normStateName(focusRegion);
+
+  return (
+    <>
+      {/* The land sits on a lighter base than the dimmed surround, so the
+          country stands out from the sea around it. */}
+      <g fill="var(--card)">
+        {land.map(({ p, i }) => (
+          <path key={i} d={p.d} />
+        ))}
+      </g>
+
+      {borders.length > 0 && (
+        <g aria-hidden fill="none" stroke="var(--map-line, #2dd4bf)" strokeLinejoin="round" strokeLinecap="round" strokeOpacity={0.5} strokeWidth={1.1 / zoom}>
+          {borders.map(({ a, b, d }, i) =>
+            // The borders of the state in focus are drawn firmer.
+            focus !== null && (normStateName(a) === focus || normStateName(b) === focus) ? (
+              <path key={i} d={d} strokeOpacity={0.95} strokeWidth={2.4 / zoom} />
+            ) : (
+              <path key={i} d={d} />
+            ),
+          )}
+        </g>
+      )}
+
+      {/* The dot grid is the land's own fill. A clip path over the whole
+          drawing made every theme change repaint for over a second. */}
+      <g fill={`url(#${gridId})`} stroke="var(--map-line, #2dd4bf)" strokeOpacity={0.55} strokeWidth={1.6 / zoom} strokeLinejoin="round">
+        {land.map(({ p, i }) => (
+          <path key={i} d={p.d} />
+        ))}
+      </g>
+      <g fill="var(--map-line, #2dd4bf)" stroke="var(--map-line, #2dd4bf)" strokeOpacity={0.9} strokeWidth={3.5 / zoom} strokeLinejoin="round">
+        {specks.map(({ p, i }) => (
+          <path key={i} d={p.d} />
+        ))}
+      </g>
+    </>
+  );
+});
+
+function ZoomButton({
+  label,
+  icon: Icon,
+  factor,
+  onZoom,
+}: {
+  label: string;
+  icon: typeof Plus;
+  factor: number;
+  onZoom: (factor: number) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={() => onZoom(factor)}
+      className="grid size-7 place-items-center rounded-md border border-border bg-card/80 text-muted-foreground backdrop-blur-sm transition-colors outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400"
+    >
+      <Icon aria-hidden className="size-3.5" />
+    </button>
+  );
+}
+
 export function IndiaMap({
   signals,
   selectedId,
@@ -71,6 +200,8 @@ export function IndiaMap({
   pulseId,
   breadcrumb,
   onLoaded,
+  region = "All India",
+  onResetRegion,
   className = "",
 }: {
   signals: Signal[];
@@ -80,10 +211,15 @@ export function IndiaMap({
   breadcrumb: string;
   // Called once the outline and borders are drawn.
   onLoaded?: () => void;
+  // The chosen state: the map glides in until it fills the box.
+  region?: string;
+  // Back to the whole country (the button shown while a state is chosen).
+  onResetRegion?: () => void;
   className?: string;
 }) {
   const [paths, setPaths] = useState<MapPath[] | null>(null);
-  const [statePaths, setStatePaths] = useState<MapPath[]>([]);
+  const [borders, setBorders] = useState<Border[]>([]);
+  const [coast, setCoast] = useState<Record<string, string>>({});
   // The outline, the borders and the land fill appear together: without
   // this the borders arrived first and the land sat in the background colour
   // until the outline came in.
@@ -94,21 +230,38 @@ export function IndiaMap({
   useEffect(() => {
     if (mapReady) onLoadedRef.current?.();
   }, [mapReady]);
-  const [zoom, setZoom] = useState(1);
+  // Zoom, and where the zoomed map is shifted to, in pixels.
+  const [view, setView] = useState({ zoom: 1, tx: 0, ty: 0 });
+  const { zoom } = view;
+  // The state's own outline, drawn stronger while it is the one in focus.
+  const [focusPath, setFocusPath] = useState<string | null>(null);
+  // The state the map is showing. It changes in the same step as the zoom,
+  // not when the picker does, so the darker lines and the zoom start together
+  // (the zoom has to wait for the state's shape to load).
+  const [focusRegion, setFocusRegion] = useState<string | null>(null);
+  // Markers and names are hidden while the map is moving, then fade back at
+  // the new size (their drawing sizes depend on the zoom, and resizing them
+  // mid-move would make them jump).
+  const [moving, setMoving] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
   const gridId = useId();
+
   const failed = useRef(false);
   const frameRef = useRef<HTMLDivElement>(null);
   // On-screen pixels per drawing unit, so names stay a readable size on a
   // phone as well as on a wide screen.
   const [scale, setScale] = useState(0.5);
+  const [box, setBox] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
     const observer = new ResizeObserver(([entry]) => {
       const box = entry?.contentRect;
-      if (box && box.width > 0 && box.height > 0) setScale(Math.min(box.width / VIEW.width, box.height / VIEW.height));
+      if (box && box.width > 0 && box.height > 0) {
+        setScale(Math.min(box.width / VIEW.width, box.height / VIEW.height));
+        setBox({ w: box.width, h: box.height });
+      }
     });
     observer.observe(frame);
     return () => observer.disconnect();
@@ -139,16 +292,96 @@ export function IndiaMap({
 
   useEffect(() => {
     let cancelled = false;
-    fetch(STATES)
+    fetch(BORDERS)
       .then((res) => res.json())
-      .then((geo: GeoJson) => {
-        if (!cancelled) setStatePaths(toPaths(geo).filter((p) => !p.islet));
+      .then((geo) => {
+        if (!cancelled) setBorders(toBorders(geo));
       })
       // Internal borders are a refinement; the country outline stands alone.
       .catch(() => {})
       .finally(() => {
         if (!cancelled) setStatesDone(true);
       });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch the state shapes up front so the first zoom starts at once.
+  useEffect(() => {
+    void stateRings("India");
+  }, []);
+
+  // Glide into the chosen state. The zoom is whatever makes its bounding box
+  // fill the map box (with a little air); the shift puts its centre in the
+  // middle of the box. The svg is drawn "meet"-fitted and scaled about its
+  // centre, so a point P (pixels from the svg's centre) lands at zoom*P + shift.
+  // A layout effect, not an effect: it runs before the browser paints the
+  // render the pick caused, so the zoom starts on that very frame.
+  useLayoutEffect(() => {
+    let cancelled = false;
+    const frame = frameRef.current;
+    if (region === "All India" || !frame) {
+      setFocusPath(null);
+      setFocusRegion(null);
+      setView((v) => (v.zoom === 1 && v.tx === 0 && v.ty === 0 ? v : { zoom: 1, tx: 0, ty: 0 }));
+      return;
+    }
+    const apply = (rings: [number, number][][]) => {
+      if (cancelled || rings.length === 0) return;
+      const points = rings.flatMap((ring) => ring.map(([lng, lat]) => project(lng, lat)));
+      const xs = points.map(([x]) => x);
+      const ys = points.map(([, y]) => y);
+      const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+      const { width: boxW, height: boxH } = frame.getBoundingClientRect();
+      const bw = Math.max(x1 - x0, 1) * scale;
+      const bh = Math.max(y1 - y0, 1) * scale;
+      const z = Math.min(MAX_ZOOM, Math.max(1, Math.min(boxW / bw, boxH / bh) * 0.88));
+      const cx = ((x0 + x1) / 2 - VIEW.width / 2) * scale;
+      const cy = ((y0 + y1) / 2 - VIEW.height / 2) * scale;
+      setMoving(true);
+      setFocusRegion(region);
+      setView({ zoom: z, tx: -z * cx, ty: -z * cy });
+      setFocusPath(
+        rings
+          .map((ring) => `${ring.map(([lng, lat], i) => `${i === 0 ? "M" : "L"}${project(lng, lat).map((n) => n.toFixed(1)).join(" ")}`).join(" ")} Z`)
+          .join(" "),
+      );
+    };
+    // The shapes are normally already here (they are fetched on load), so no await.
+    const now = stateRingsNow(region);
+    if (now) apply(now);
+    else void stateRings(region).then(apply);
+    return () => {
+      cancelled = true;
+    };
+  }, [region, scale]);
+
+  // The move is over: show markers and names again. A timeout backs up
+  // transitionend, which doesn't fire when nothing actually moved.
+  useEffect(() => {
+    if (!moving) return;
+    const timer = window.setTimeout(() => setMoving(false), reducedMotion ? 0 : 950);
+    return () => window.clearTimeout(timer);
+  }, [moving, view, reducedMotion]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(COAST)
+      .then((res) => res.json())
+      .then((geo: { features: { properties: { name: string }; geometry: { type: string; coordinates: unknown } }[] }) => {
+        if (cancelled) return;
+        const byState: Record<string, string> = {};
+        for (const { properties, geometry } of geo.features) {
+          byState[normStateName(properties.name)] =
+            geometry.type === "MultiLineString"
+              ? (geometry.coordinates as [number, number][][]).map(linePath).join(" ")
+              : linePath(geometry.coordinates as [number, number][]);
+        }
+        setCoast(byState);
+      })
+      // Only the darker edge is lost; the zoom still works.
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -183,13 +416,40 @@ export function IndiaMap({
   }, [located]);
 
   const labels = useMemo(
-    () => layoutLabels(places.map((p) => ({ key: p.text, ...p })), LABEL_PX / scale, VIEW),
-    [places, scale],
+    () => {
+      const px = scale * zoom;
+      // The part of the drawing that is on screen: the box, seen through the
+      // zoom and shift, with a little margin so names don't touch the edge.
+      const halfW = box.w / 2 / px;
+      const halfH = box.h / 2 / px;
+      const cx = VIEW.width / 2 - view.tx / px;
+      const cy = VIEW.height / 2 - view.ty / px;
+      const pad = 6 / px;
+      const window = box.w > 0 ? { x0: cx - halfW + pad, x1: cx + halfW - pad, y0: cy - halfH + pad, y1: cy + halfH - pad } : undefined;
+      return layoutLabels(places.map((p) => ({ key: p.text, ...p })), LABEL_PX / px, VIEW, { zoom, ...(window ? { window } : {}) });
+    },
+    [places, scale, zoom, view.tx, view.ty, box],
   );
   const selectedPlace = located.find((s) => s.id === selectedId)?.place ?? null;
 
+  const zoomBy = (factor: number) => {
+    setMoving(true);
+    setView((v) => {
+      const z = Math.min(MAX_ZOOM, Math.max(1, v.zoom * factor));
+      // Keep the same spot in the middle; back at 1x, back to centre.
+      return z === 1 ? { zoom: 1, tx: 0, ty: 0 } : { zoom: z, tx: (v.tx * z) / v.zoom, ty: (v.ty * z) / v.zoom };
+    });
+  };
+
+  // A landmass is only a speck (drawn as a bold dot) while it is tiny on screen;
+  // zoomed into the islands it is just land again.
+  const speck = (p: MapPath) => p.islet && p.size * scale * zoom < 5;
+
   return (
-    <div ref={frameRef} className={`relative overflow-hidden rounded-xl border border-border bg-background ${className}`}>
+    // cn() so a caller's `rounded-none border-0` actually replaces the defaults;
+    // with both in the class list the winner was down to stylesheet order, and the
+    // map kept rounded corners inside its square-cornered parent.
+    <div ref={frameRef} className={cn("relative overflow-hidden rounded-xl border border-border bg-background", className)}>
       {/* Soft teal glow behind the country. */}
       <div
         aria-hidden
@@ -204,52 +464,52 @@ export function IndiaMap({
         viewBox={`0 0 ${VIEW.width} ${VIEW.height}`}
         className="size-full"
         style={{
-          transform: `scale(${zoom})`,
+          transform: `translate(${view.tx}px, ${view.ty}px) scale(${zoom})`,
+          // While it moves, the map is its own layer, drawn once and scaled. Without
+          // this the browser rasterised the whole drawing at the final (up to 9x)
+          // size at the start of every zoom-in, which froze the page for about a
+          // second. Dropped at the end so it is redrawn sharp at its new size.
+          willChange: moving ? "transform" : undefined,
           opacity: mapReady ? 1 : 0,
-          transition: reducedMotion ? "none" : "transform .35s ease-out, opacity .5s ease-out",
+          transition: reducedMotion ? "none" : "transform .9s cubic-bezier(.22,1,.36,1), opacity .5s ease-out",
         }}
         role="img"
         aria-label={`Map of India showing ${located.length} located signals`}
+        onTransitionEnd={(event) => {
+          if (event.target === event.currentTarget && event.propertyName === "transform") setMoving(false);
+        }}
       >
         <defs>
-          <pattern id={gridId} width="16" height="16" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="1" className="fill-teal-500/25" />
+          {/* The dot texture keeps its on-screen spacing at any zoom. */}
+          <pattern id={gridId} width={16 / zoom} height={16 / zoom} patternUnits="userSpaceOnUse">
+            <circle cx={1 / zoom} cy={1 / zoom} r={1 / zoom} className="fill-teal-500/25" />
           </pattern>
 
         </defs>
 
-        {/* The land sits on a lighter base than the dimmed surround, so the
-            country stands out from the sea around it. */}
-        {paths?.map(({ d, islet }, i) =>
-          islet ? null : <path key={`base-${i}`} d={d} fill="var(--card)" />,
+        <LandLayers paths={paths} borders={borders} focusRegion={focusRegion} zoom={zoom} pxScale={scale * zoom} gridId={gridId} />
+
+        {/* The stretch of the country's outline that touches the state in focus,
+            as firm as that state's own borders. (A mask over the whole outline
+            did this before, but masking at zoom froze the page for a second.) */}
+        {focusRegion !== null && coast[normStateName(focusRegion)] && (
+          <path
+            aria-hidden
+            d={coast[normStateName(focusRegion)]}
+            fill="none"
+            stroke="var(--map-line, #2dd4bf)"
+            strokeOpacity={0.95}
+            strokeWidth={2.4 / zoom}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
         )}
 
-        {statePaths.length > 0 && (
-          <g aria-hidden fill="none" stroke="var(--map-line, #2dd4bf)" strokeOpacity={0.5} strokeWidth={1.1} strokeLinejoin="round">
-            {statePaths.map(({ d }, i) => (
-              <path key={i} d={d} />
-            ))}
-          </g>
-        )}
+        {/* The state in focus: a faint wash. */}
+        {focusPath && <path aria-hidden d={focusPath} fill="var(--map-line, #2dd4bf)" fillOpacity={0.1} />}
 
-        {paths && paths.length > 0 && (
-          <>
-            {paths.map(({ d, islet }, i) => (
-              <path
-                key={i}
-                d={d}
-                // The dot grid is the land's own fill. A clip path over the whole
-                // drawing made every theme change repaint for over a second.
-                fill={islet ? "var(--map-line, #2dd4bf)" : `url(#${gridId})`}
-                stroke="var(--map-line, #2dd4bf)"
-                strokeOpacity={islet ? 0.9 : 0.55}
-                strokeWidth={islet ? 3.5 : 1.6}
-                strokeLinejoin="round"
-              />
-            ))}
-          </>
-        )}
-
+        {/* Markers and names fade out while the map moves. */}
+        <g style={{ opacity: moving ? 0 : 1, transition: reducedMotion ? "none" : "opacity .25s ease-out" }}>
         {located.map((signal) => {
           const [x, y] = project(signal.lng as number, signal.lat as number);
           const tone = SEVERITY[signal.severity];
@@ -263,6 +523,8 @@ export function IndiaMap({
               key={signal.id}
               role="button"
               tabIndex={0}
+              // Drawn at the same size on screen whatever the zoom.
+              transform={`translate(${x} ${y}) scale(${1 / zoom}) translate(${-x} ${-y})`}
               aria-label={`${signal.title}. ${signal.place}. ${tone.label}`}
                   onClick={() => onSelect(signal)}
                   onKeyDown={(event) => {
@@ -274,6 +536,8 @@ export function IndiaMap({
               className="cursor-pointer outline-none focus-visible:[&>circle:last-of-type]:stroke-teal-300"
             >
               <title>{signal.title}</title>
+              {/* An invisible 44px target around the small marker. */}
+              <circle cx={x} cy={y} r={22 / scale} fill="transparent" />
                   {/* Halo for the worst signals, and a dashed ring so they
                       read as urgent without relying on colour alone. */}
                   {signal.severity === "critical" && (
@@ -324,10 +588,10 @@ export function IndiaMap({
                 textAnchor={label.anchor}
                 className="fill-foreground font-semibold"
                 style={{
-                  fontSize: (isSelected ? LABEL_PX + 2 : LABEL_PX) / scale,
+                  fontSize: (isSelected ? LABEL_PX + 2 : LABEL_PX) / (scale * zoom),
                   paintOrder: "stroke",
                   stroke: "var(--card)",
-                  strokeWidth: 6 / scale,
+                  strokeWidth: 6 / (scale * zoom),
                   strokeLinejoin: "round",
                 }}
               >
@@ -336,6 +600,7 @@ export function IndiaMap({
             </g>
           );
         })}
+        </g>
       </svg>
 
       <p className="sr-only">{breadcrumb}</p>
@@ -349,21 +614,24 @@ export function IndiaMap({
         ))}
       </div>
 
-      <div className="absolute right-3 bottom-3 flex flex-col gap-1">
-        {[
-          { label: "Zoom in", icon: Plus, delta: 0.2 },
-          { label: "Zoom out", icon: Minus, delta: -0.2 },
-        ].map(({ label, icon: Icon, delta }) => (
-          <button
-            key={label}
-            type="button"
-            aria-label={label}
-            onClick={() => setZoom((z) => Math.min(2.2, Math.max(1, Number((z + delta).toFixed(2)))))}
-            className="grid size-7 place-items-center rounded-md border border-border bg-card/80 text-muted-foreground backdrop-blur-sm transition-colors outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400"
-          >
-            <Icon aria-hidden className="size-3.5" />
-          </button>
-        ))}
+      <div className="absolute right-3 bottom-3 flex flex-col items-end gap-1">
+        <ZoomButton label="Zoom in" icon={Plus} factor={1.3} onZoom={zoomBy} />
+        {/* While a state is chosen, a way back out to the whole country, on the
+            same row as zoom-out and to its left. */}
+        <div className="flex items-center gap-2">
+          {region !== "All India" && onResetRegion && (
+            <button
+              type="button"
+              onClick={onResetRegion}
+              aria-label="Show all of India"
+              className="relative flex h-7 items-center gap-1.5 rounded-md border border-border bg-card/80 px-2.5 font-mono text-[10px] tracking-[0.15em] text-muted-foreground backdrop-blur-sm transition-colors outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400 after:absolute after:-inset-1.5 after:content-[''] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-2"
+            >
+              <Undo2 aria-hidden className="size-3.5" />
+              ALL INDIA
+            </button>
+          )}
+          <ZoomButton label="Zoom out" icon={Minus} factor={1 / 1.3} onZoom={zoomBy} />
+        </div>
       </div>
     </div>
   );

@@ -39,12 +39,12 @@ export function SupportProject() {
               If you find my work useful or interesting, you can support me with a coffee. It helps me keep
               building, experimenting, and turning questionable ideas into actual products.
             </p>
-            <div className="mt-4 border-t border-border pt-3">
+            <div className="mt-4 border-t border-border pt-3 max-md:text-center">
               <a
                 href={BMC_URL}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="inline-block py-1 font-mono text-xs tracking-[0.2em] text-foreground hover:text-muted-foreground"
+                className="inline-block py-3 font-mono text-xs tracking-[0.2em] text-foreground hover:text-muted-foreground"
               >
                 {/* The underline is a border under the whole phrase: a text underline
                     is clipped away beneath the gradient text. */}
@@ -63,17 +63,15 @@ export function SupportProject() {
 
         {/* Attribution required by the licences of the map data used on this page. */}
         <p className="mt-8 max-w-xl text-xs leading-relaxed text-muted-foreground">
-          India boundary by the <ExternalLink href="https://github.com/datameet/maps">DataMeet India community</ExternalLink> (
-          <ExternalLink href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</ExternalLink>). India outline by
-          Theo10011 and Amog via <ExternalLink href="https://commons.wikimedia.org/wiki/File:India_outline.svg">Wikimedia Commons</ExternalLink> (
-          <ExternalLink href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</ExternalLink>). World boundaries from{" "}
-          <ExternalLink href="https://www.naturalearthdata.com/">Natural Earth</ExternalLink>.
+          India boundary and state borders by the <ExternalLink href="https://github.com/datameet/maps">DataMeet India community</ExternalLink> (
+          <ExternalLink href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</ExternalLink>). World boundaries
+          from <ExternalLink href="https://www.naturalearthdata.com/">Natural Earth</ExternalLink>.
         </p>
         <p className="flex gap-4 text-xs text-muted-foreground">
-          <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+          <Link href="/privacy" className="inline-block py-3 underline underline-offset-2 hover:text-foreground">
             Privacy policy
           </Link>
-          <PrivacyChoicesButton className="underline underline-offset-2 hover:text-foreground" />
+          <PrivacyChoicesButton className="py-3 underline underline-offset-2 hover:text-foreground" />
         </p>
       </div>
     </section>

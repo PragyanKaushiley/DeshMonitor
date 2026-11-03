@@ -17,15 +17,15 @@ export interface PlacedLabel {
   anchor: "start" | "middle" | "end";
 }
 
-interface Box {
+export interface Box {
   x0: number;
   y0: number;
   x1: number;
   y1: number;
 }
 
-const GAP = 16; // from the point's centre to the text
-const MARKER = 16; // half-size of the box a point occupies
+const GAP_UNITS = 16; // from the point's centre to the text
+const MARKER_UNITS = 16; // half-size of the box a point occupies
 const CHAR_WIDTH = 0.58; // average glyph width, as a fraction of the font size
 
 function overlap(a: Box, b: Box): number {
@@ -40,7 +40,15 @@ export function layoutLabels(
   points: LabelPoint[],
   fontSize: number,
   bounds: { width: number; height: number },
+  // Zoomed in, markers keep their size on screen, so in drawing units they
+  // (and the gap to a name) shrink; `window` is the part of the drawing that
+  // is actually visible, which names must stay inside.
+  options: { zoom?: number; window?: Box } = {},
 ): PlacedLabel[] {
+  const zoom = options.zoom ?? 1;
+  const GAP = GAP_UNITS / zoom;
+  const MARKER = MARKER_UNITS / zoom;
+  const area = options.window ?? { x0: 0, y0: 0, x1: bounds.width, y1: bounds.height };
   const height = fontSize * 1.1;
   const markers: Box[] = points.map((p) => ({ x0: p.x - MARKER, y0: p.y - MARKER, x1: p.x + MARKER, y1: p.y + MARKER }));
   const placed: Box[] = [];
@@ -79,7 +87,8 @@ export function layoutLabels(
         if (i !== index) cost += overlap(box, marker);
       });
       // Running off the drawing is worse than a little overlap.
-      const outside = Math.max(0, -box.x0) + Math.max(0, box.x1 - bounds.width) + Math.max(0, -box.y0) + Math.max(0, box.y1 - bounds.height);
+      const outside =
+        Math.max(0, area.x0 - box.x0) + Math.max(0, box.x1 - area.x1) + Math.max(0, area.y0 - box.y0) + Math.max(0, box.y1 - area.y1);
       cost += outside * height * 4;
 
       if (cost < bestCost) {

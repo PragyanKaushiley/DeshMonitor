@@ -67,12 +67,21 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 // A bar chart of the signal's own series, in whatever unit it carries.
-function SeriesChart({ signal }: { signal: Signal }) {
-  const max = Math.max(...signal.series.map((p) => p.value), 1);
+// `varied` redraws it with its own values, so a second source's chart (the
+// sample data only has one series per signal) doesn't repeat the first.
+function SeriesChart({ signal, varied = false }: { signal: Signal; varied?: boolean }) {
+  const points = useMemo(
+    () =>
+      varied
+        ? signal.series.map((p) => ({ ...p, value: Math.max(1, p.value * (0.4 + Math.random() * 1.1)) }))
+        : signal.series,
+    [signal.series, varied],
+  );
+  const max = Math.max(...points.map((p) => p.value), 1);
   return (
     <div>
       <div className="flex h-28 gap-1.5">
-        {signal.series.map((point) => (
+        {points.map((point) => (
           <div key={point.label} className="flex min-w-0 flex-1 flex-col items-center gap-1">
             {/* The bar's percentage height needs a parent with a definite
                 one, which this flex-1 track provides; the label sits under it. */}
@@ -92,9 +101,11 @@ function SeriesChart({ signal }: { signal: Signal }) {
 }
 
 function EvidenceCards({ signal }: { signal: Signal }) {
+  // Only the first chart is the signal's own series; later ones are varied.
+  const firstChart = signal.evidence.findIndex((e) => e.kind !== "news");
   return (
     <div className="flex flex-col gap-3">
-      {signal.evidence.map((item) => (
+      {signal.evidence.map((item, index) => (
         <div key={item.label} className="rounded-lg border border-border bg-card/60 p-3">
           <div className="flex items-baseline gap-2">
             <span className="font-mono text-[10px] tracking-[0.2em] text-teal-400">{item.kind.toUpperCase()}</span>
@@ -127,7 +138,7 @@ function EvidenceCards({ signal }: { signal: Signal }) {
             </>
           ) : (
             <div className="mt-2">
-              <SeriesChart signal={signal} />
+              <SeriesChart signal={signal} varied={index !== firstChart} />
             </div>
           )}
         </div>

@@ -17,11 +17,14 @@ export function LandingNav({ sceneLabel, showProgress = true }: { sceneLabel: st
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const reducedMotion = usePrefersReducedMotion();
+  // "20.5937° N, 78.9629° E" → "20.6° N, 79.0° E" for the narrow nav, where two
+  // decimals still didn't fit between the wordmark and the buttons.
+  const shortLabel = sceneLabel.replace(/\d+\.\d+/g, (n) => Number(n).toFixed(1));
   const lenis = useLenis();
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 top-0 z-40 flex items-center justify-between px-6 py-5 sm:px-10 sm:py-6">
+    <nav className="fixed inset-x-0 top-0 z-40 flex items-center justify-between gap-3 px-6 py-5 sm:px-10 sm:py-6">
       {/* Theme-aware scrim + text: the page beneath the nav is no longer
           guaranteed to be dark photography (the globe/India/data sections
           all use theme-reactive bg-background), so a hardcoded white/black
@@ -43,24 +46,39 @@ export function LandingNav({ sceneLabel, showProgress = true }: { sceneLabel: st
           if (lenis) lenis.scrollTo(0);
           else window.scrollTo({ top: 0 });
         }}
-        className="whitespace-nowrap font-display text-sm tracking-[0.2em] text-foreground sm:text-base"
+        className="shrink-0 whitespace-nowrap py-2 font-display text-sm tracking-[0.2em] text-foreground sm:text-base"
       >
         <Desh tooltip={false} /> MONITOR
       </a>
-      <div className="flex min-w-0 items-center gap-3 sm:gap-6">
-        <span className="truncate font-mono text-[10px] tracking-[0.15em] text-muted-foreground sm:text-xs sm:tracking-[0.2em]">
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-3 sm:gap-6">
+        {/* The status readout (ORBITING, then the coordinates). It truncates
+            rather than crowding the wordmark when the nav is narrow. */}
+        <span className="min-w-0 truncate text-right font-mono text-[10px] tracking-[0.04em] text-muted-foreground sm:text-xs sm:tracking-[0.2em]">
           {reducedMotion ? (
-            sceneLabel
+            <>
+              <span className="sm:hidden">{shortLabel}</span>
+              <span className="max-sm:hidden">{sceneLabel}</span>
+            </>
           ) : (
             // Scrambles into each new status (ORBITING → LOCATING INDIA → coordinates).
-            <HyperText as="span" duration={700} animateOnHover={false} className="p-0 text-[10px] font-normal tracking-[0.15em] sm:text-xs sm:tracking-[0.2em]">
-              {sceneLabel}
-            </HyperText>
+            // On a phone the coordinates are rounded to two decimals so they fit.
+            <>
+              <span className="sm:hidden">
+                <HyperText as="span" duration={700} animateOnHover={false} className="p-0 text-[10px] font-normal tracking-[0.04em]">
+                  {shortLabel}
+                </HyperText>
+              </span>
+              <span className="max-sm:hidden">
+                <HyperText as="span" duration={700} animateOnHover={false} className="p-0 text-xs font-normal tracking-[0.2em]">
+                  {sceneLabel}
+                </HyperText>
+              </span>
+            </>
           )}
         </span>
         <div className="flex items-center gap-2">
           {mounted ? (
-            <ThemeTogglerButton variant="ghost" size="sm" />
+            <ThemeTogglerButton variant="ghost" size="sm" className="relative after:absolute after:-inset-1.5 after:content-['']" />
           ) : (
             <span className="size-9" aria-hidden />
           )}

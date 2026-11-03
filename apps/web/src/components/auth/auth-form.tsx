@@ -179,7 +179,7 @@ export function AuthForm({ onSignedIn }: { onSignedIn: (user: AuthUser) => void 
             className="min-h-9.5 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-foreground/50 focus:ring-3 focus:ring-teal-400/25 aria-invalid:border-destructive"
           />
           {fieldErrors.email && (
-            <p id={`${emailId}-error`} className="text-xs text-destructive">
+            <p id={`${emailId}-error`} role="alert" className="text-xs text-destructive">
               {fieldErrors.email}
             </p>
           )}
@@ -202,7 +202,7 @@ export function AuthForm({ onSignedIn }: { onSignedIn: (user: AuthUser) => void 
             className="min-h-9.5 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-foreground/50 focus:ring-3 focus:ring-teal-400/25 aria-invalid:border-destructive"
           />
           {fieldErrors.password ? (
-            <p id={`${passwordId}-error`} className="text-xs text-destructive">
+            <p id={`${passwordId}-error`} role="alert" className="text-xs text-destructive">
               {fieldErrors.password}
             </p>
           ) : (

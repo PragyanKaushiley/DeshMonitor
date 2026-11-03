@@ -76,6 +76,13 @@ function isIndia(feature: object): boolean {
   return (feature as CountryFeature).properties?.ISO_A3 === INDIA_ISO_A3;
 }
 
+// "#rrggbb" plus an opacity, as rgba(). three-globe hands path colours straight
+// to THREE.Color, which rejects 8-digit hex ("#0f766e99") with a console error.
+function withAlpha(hex: string, alpha: number): string {
+  const n = Number.parseInt(hex.replace("#", ""), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
 function computeYawPitch(vec: { x: number; y: number; z: number }): { yaw: number; pitch: number } {
   const yaw = Math.atan2(-vec.x, vec.z);
   const pitch = Math.atan2(vec.y, Math.sqrt(vec.x * vec.x + vec.z * vec.z));
@@ -223,7 +230,7 @@ export function GlobeScene({
         .atmosphereColor(theme.atmosphere)
         .atmosphereAltitude(0.18)
         .polygonsData(countries)
-        .polygonCapColor((f) => (isIndia(f) ? `${theme.accent}55` : "rgba(0,0,0,0)"))
+        .polygonCapColor((f) => (isIndia(f) ? withAlpha(theme.accent, 0.33) : "rgba(0,0,0,0)"))
         .polygonSideColor(() => "rgba(0,0,0,0)")
         .polygonStrokeColor((f) => (isIndia(f) ? theme.accent : theme.wireframe))
         .polygonAltitude((f) => (isIndia(f) ? 0.018 : 0.006))
@@ -234,7 +241,7 @@ export function GlobeScene({
         .pathPointLat((p) => (p as [number, number])[0])
         .pathPointLng((p) => (p as [number, number])[1])
         .pathPointAlt(0.0185)
-        .pathColor(() => `${theme.accent}99`)
+        .pathColor(() => withAlpha(theme.accent, 0.6))
         .pathTransitionDuration(0);
       scene.add(globe);
       scene.background = null;
@@ -392,8 +399,8 @@ export function GlobeScene({
         globeMaterial.color.set(t.background);
         globe.atmosphereColor(t.atmosphere);
         globe.polygonStrokeColor((f) => (isIndia(f) ? t.accent : t.wireframe));
-        globe.polygonCapColor((f) => (isIndia(f) ? `${t.accent}55` : "rgba(0,0,0,0)"));
-        globe.pathColor(() => `${t.accent}99`);
+        globe.polygonCapColor((f) => (isIndia(f) ? withAlpha(t.accent, 0.33) : "rgba(0,0,0,0)"));
+        globe.pathColor(() => withAlpha(t.accent, 0.6));
         render();
       });
       themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
