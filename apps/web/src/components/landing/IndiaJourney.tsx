@@ -8,6 +8,8 @@ import { useScrolledPast } from "@/lib/landing/useScrolledPast";
 import { BentoCard, BentoGrid } from "@/components/ui/bento-grid";
 import { ShimmerLink } from "@/components/ui/shimmer-button";
 import { ShineBorder } from "@/components/ui/shine-border";
+import { AnimatedGradientText } from "@/components/ui/animated-gradient-text";
+import { WordRotate } from "@/components/ui/word-rotate";
 import { GovernmentArt, MarketsArt, NewsArt, WeatherArt } from "./CategoryArt";
 import { Desh } from "./Desh";
 
@@ -48,6 +50,10 @@ const CATEGORIES = [
   },
 ];
 
+// The topics that cycle in the intro line (the static version lists two).
+const ROTATING_TOPICS = ["news.", "weather.", "markets.", "government.", "disasters."];
+const ROTATING_LEAD = "Real-time signals from";
+
 const SHINE_COLORS = ["#2dd4bf", "#0f766e", "#5eead4"];
 
 // The outline is drawn this far right of its box so its tip sits over the
@@ -60,7 +66,8 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const copyRef = useRef<HTMLDivElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
-  const ctaTileRef = useRef<HTMLDivElement>(null);
+  const ctaSlotRef = useRef<HTMLDivElement>(null);
+  const ctaTileRef = useRef<HTMLAnchorElement>(null);
   const hintRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const gridWrapRef = useRef<HTMLDivElement>(null);
@@ -75,12 +82,13 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
     const map = mapRef.current;
     const copy = copyRef.current;
     const cta = ctaRef.current;
+    const ctaSlot = ctaSlotRef.current;
     const ctaTile = ctaTileRef.current;
     const hint = hintRef.current;
     const grid = gridRef.current;
     const gridWrap = gridWrapRef.current;
     const indiaSlot = indiaSlotRef.current;
-    if (!section || !reveal || !map || !copy || !cta || !ctaTile || !hint || !grid || !gridWrap || !indiaSlot) return;
+    if (!section || !reveal || !map || !copy || !cta || !ctaSlot || !ctaTile || !hint || !grid || !gridWrap || !indiaSlot) return;
 
     // Layout offsets (not getBoundingClientRect) so measurements ignore the
     // transforms this timeline itself applies when it re-measures on refresh.
@@ -98,21 +106,29 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
       return { x: sx - cx - MAP_SHIFT * size * scale, y: sy - cy, scale, opacity: 0.9 };
     }
 
-    // Desktop: the button glides into the empty tile beside Government &
-    // Policy. Phones hide that tile, so it simply fades with the copy.
+    // Desktop: the button glides into the tile beside Government & Policy and
+    // grows to cover all of it, so the tile is the button. It is centred on
+    // its slot (xPercent/yPercent), so changing its width and height only
+    // moves it by the difference between the two centres. Phones hide that
+    // tile, so the button just fades with the copy.
     function ctaTarget() {
-      if (section!.clientWidth < 768) return { x: 0, y: -12, opacity: 0 };
+      if (section!.clientWidth < 768) {
+        return { x: 0, y: -12, opacity: 0, width: ctaSlot!.offsetWidth, height: ctaSlot!.offsetHeight };
+      }
       const gx = gridWrap!.offsetLeft + ctaTile!.offsetLeft + ctaTile!.offsetWidth / 2;
-      const gy = gridWrap!.offsetTop + ctaTile!.offsetTop + ctaTile!.offsetHeight / 2 + 12;
+      const gy = gridWrap!.offsetTop + ctaTile!.offsetTop + ctaTile!.offsetHeight / 2;
       return {
-        x: gx - (cta!.offsetLeft + cta!.offsetWidth / 2),
-        y: gy - (cta!.offsetTop + cta!.offsetHeight / 2),
+        x: gx - (ctaSlot!.offsetLeft + ctaSlot!.offsetWidth / 2),
+        y: gy - (ctaSlot!.offsetTop + ctaSlot!.offsetHeight / 2),
         opacity: 1,
+        width: ctaTile!.offsetWidth,
+        height: ctaTile!.offsetHeight,
       };
     }
 
     const ctx = gsap.context(() => {
       gsap.set(map, { opacity: 0, scale: 1.08 });
+      gsap.set(cta, { xPercent: -50, yPercent: -50 });
       gsap.set([...copy.children, cta, hint], { opacity: 0, y: 16 });
       gsap.set(grid.children, { opacity: 0, y: 16 });
       // Hidden cards must not catch the pointer over the CTA beneath them.
@@ -149,6 +165,9 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
             x: () => ctaTarget().x,
             y: () => ctaTarget().y,
             opacity: () => ctaTarget().opacity,
+            width: () => ctaTarget().width,
+            height: () => ctaTarget().height,
+            force3D: false,
             ease: "power2.inOut",
             duration: 1.2,
           },
@@ -225,16 +244,16 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
             <ShineBorder shineColor={SHINE_COLORS} />
           </BentoCard>,
         ])}
-        {/* Where the Enter button lands (desktop only). */}
-        <div
+        {/* An empty grid cell that the Enter button lands on and covers
+            (desktop only). It draws nothing itself, so no edge shows around the
+            button; the button is the link. */}
+        <a
           ref={ctaTileRef}
-          className={`relative hidden overflow-hidden rounded-xl border border-border bg-card/80 backdrop-blur-sm md:block dark:border-white/10 ${rm ? "md:hidden" : ""}`}
-        >
-          <ShineBorder shineColor={SHINE_COLORS} />
-          <p className="absolute inset-x-0 top-4 text-center font-mono text-[10px] tracking-[0.2em] text-muted-foreground">
-            LIVE DASHBOARD
-          </p>
-        </div>
+          href="/monitor?utm_source=deshmonitor&utm_medium=landing&utm_campaign=enter_monitor&utm_content=bento_tile"
+          tabIndex={-1}
+          aria-hidden
+          className={`invisible hidden md:block ${rm ? "md:hidden" : ""}`}
+        />
       </BentoGrid>
     </div>
   );
@@ -273,7 +292,26 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
           <h2 className="font-display text-4xl text-foreground sm:text-5xl">INDIA</h2>
           <p className="font-display text-xl text-muted-foreground sm:text-2xl">is constantly changing.</p>
           <p className="max-w-md font-display text-base text-muted-foreground sm:text-lg">
-            Real-time signals from news, weather, and beyond — collected, verified, and made visible.
+            {rm ? (
+              <span className="block">{ROTATING_LEAD} news, weather, and beyond.</span>
+            ) : (
+              // The line is as wide as its longest version and left-aligned, so
+              // "Real-time signals from" never moves: a longer word (its full
+              // stop included) just extends to the right.
+              <span className="block">
+                <span className="inline-grid text-left">
+                  {ROTATING_TOPICS.map((topic) => (
+                    <span key={topic} aria-hidden className="invisible col-start-1 row-start-1">
+                      {ROTATING_LEAD} {topic}
+                    </span>
+                  ))}
+                  <span className="col-start-1 row-start-1">
+                    {ROTATING_LEAD} <WordRotate words={ROTATING_TOPICS} duration={2200} />
+                  </span>
+                </span>
+              </span>
+            )}
+            <span className="block">Collected, verified, and made visible.</span>
           </p>
           <p className="mt-3 font-display text-3xl text-foreground sm:text-4xl">
             <Desh /> MONITOR
@@ -281,19 +319,39 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
           <p className="font-display text-lg text-muted-foreground sm:text-xl">See what&apos;s happening.</p>
         </div>
 
-        <div ref={ctaRef} className="relative z-20 -mt-2">
-          {/* Display-font caps like the nav wordmark: देश has no glyphs in
-              the mono font and sat above its baseline, looking detached. */}
-          <ShimmerLink
-            href="/monitor?utm_source=deshmonitor&utm_medium=landing&utm_campaign=enter_monitor&utm_content=india_reveal_cta"
-            borderRadius="0px"
-            background="var(--background)"
-            shimmerColor="#2dd4bf"
-            className="inline-flex gap-2 border-foreground/30 font-display text-sm tracking-[0.2em] text-foreground sm:text-base"
+        {/* The slot keeps the button's place in the column; the button itself is
+            positioned over it, so resizing it never moves the text above. */}
+        <div ref={ctaSlotRef} className="relative -mt-2">
+          <span
+            aria-hidden
+            className="invisible inline-flex gap-2 border px-6 py-3 font-display text-sm tracking-[0.2em] whitespace-nowrap sm:text-base"
           >
-            ENTER <Desh tooltip={false} /> MONITOR
-            <span aria-hidden>→</span>
-          </ShimmerLink>
+            ENTER <Desh tooltip={false} /> MONITOR →
+          </span>
+          <div ref={ctaRef} className="absolute top-1/2 left-1/2 z-20 size-full">
+            {/* Display-font caps like the nav wordmark: देश has no glyphs in
+                the mono font and sat above its baseline, looking detached. */}
+            <ShimmerLink
+              href="/monitor?utm_source=deshmonitor&utm_medium=landing&utm_campaign=enter_monitor&utm_content=india_reveal_cta"
+              borderRadius="12px"
+              background="color-mix(in oklab, var(--card) 80%, transparent)"
+              spark={false}
+              // The same raised look as the bento tiles: a soft layered shadow
+              // on light, a lit inner edge on dark.
+              className="size-full gap-2 border-0 font-display text-sm tracking-[0.2em] text-foreground [box-shadow:0_0_0_1px_rgba(0,0,0,.03),0_2px_4px_rgba(0,0,0,.05),0_12px_24px_rgba(0,0,0,.05)] backdrop-blur-sm sm:text-base dark:border dark:border-white/10 dark:[box-shadow:0_-20px_80px_-20px_#ffffff1f_inset]"
+            >
+              <span>
+                ENTER <Desh tooltip={false} /> MONITOR
+                <span aria-hidden> →</span>
+              </span>
+              {/* The bento tiles' animated edge and hover tint. */}
+              <ShineBorder shineColor={SHINE_COLORS} />
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 transform-gpu transition-all duration-300 group-hover:bg-black/3 group-hover:dark:bg-neutral-800/10"
+              />
+            </ShimmerLink>
+          </div>
         </div>
 
         {/* The static counterpart of the animated hint below; dropped as

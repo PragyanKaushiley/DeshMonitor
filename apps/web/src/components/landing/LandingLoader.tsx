@@ -54,6 +54,11 @@ export function LandingLoader({ onComplete }: { onComplete: () => void }) {
   const bgRef = useRef<HTMLDivElement>(null);
   const metaRef = useRef<HTMLDivElement>(null);
   const wordmarkRef = useRef<HTMLSpanElement>(null);
+  // The wordmark is drawn at the hero title's real size and shrunk for the
+  // loader, so it grows back to exactly 1x and the swap to the real title is
+  // seamless. (Scaling a smaller one up by a measured width ratio left its
+  // letters a few percent smaller than the title's, which popped on swap.)
+  const [wordmarkSized, setWordmarkSized] = useState(false);
   const completedRef = useRef(false);
   const mountedAtRef = useRef<number | null>(null);
   if (mountedAtRef.current === null) mountedAtRef.current = performance.now();
@@ -98,6 +103,29 @@ export function LandingLoader({ onComplete }: { onComplete: () => void }) {
   }, [state, minDisplayMs]);
 
   useEffect(() => {
+    const wordmark = wordmarkRef.current;
+    if (!wordmark) return;
+    const fit = () => {
+      gsap.set(wordmark, { scale: 1, x: 0, y: 0 });
+      wordmark.style.margin = "0";
+      const heroPx = parseFloat(getComputedStyle(wordmark).fontSize);
+      const loaderPx = window.innerWidth >= 640 ? 36 : 30;
+      const s = Math.min(1, loaderPx / heroPx);
+      // Its layout box stays full size, so pull the neighbours back in.
+      wordmark.style.margin = `${(-wordmark.offsetHeight * (1 - s)) / 2}px 0`;
+      gsap.set(wordmark, { scale: s });
+    };
+    fit();
+    setWordmarkSized(true);
+    // Resizing mid-handoff would fight the tween.
+    const onResize = () => {
+      if (!completedRef.current) fit();
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     void whenGlobeReady().then(() => {
       if (!cancelled) setGlobeReady(true);
@@ -140,7 +168,6 @@ export function LandingLoader({ onComplete }: { onComplete: () => void }) {
       // Both are styled identically, so a uniform scale reads as one object.
       const from = wordmark.getBoundingClientRect();
       const to = target.getBoundingClientRect();
-      const scale = to.width / from.width;
       const dx = to.left + to.width / 2 - (from.left + from.width / 2);
       const dy = to.top + to.height / 2 - (from.top + from.height / 2);
 
@@ -148,7 +175,9 @@ export function LandingLoader({ onComplete }: { onComplete: () => void }) {
         .timeline({ onComplete: finish })
         .to(meta, { opacity: 0, y: -8, duration: 0.3 }, 0)
         .to(bg, { opacity: 0, duration: 0.9, ease: "power1.inOut" }, 0.15)
-        .to(wordmark, { x: dx, y: dy, scale, duration: 1.1, ease: "power3.inOut" }, 0.1);
+        // No will-change and no forced 3D: a composited layer keeps the small
+        // raster and stretches it (blurry) until the real title replaces it.
+        .to(wordmark, { x: dx, y: dy, scale: 1, duration: 1.1, ease: "power3.inOut", force3D: false }, 0.1);
     };
 
     const elapsed = performance.now() - (mountedAtRef.current ?? performance.now());
@@ -180,7 +209,7 @@ export function LandingLoader({ onComplete }: { onComplete: () => void }) {
       </div>
 
       <div aria-hidden className="relative flex flex-col items-center gap-6">
-        <span ref={wordmarkRef} className="inline-block origin-center font-display text-3xl text-foreground will-change-transform sm:text-4xl">
+        <span ref={wordmarkRef} className={`inline-block origin-center whitespace-nowrap font-display text-4xl text-foreground sm:text-5xl lg:text-7xl ${wordmarkSized ? "" : "invisible"}`}>
           <Desh /> Monitor
         </span>
         <div ref={metaRef} className="flex flex-col items-center gap-6">

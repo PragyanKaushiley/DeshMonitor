@@ -1,5 +1,7 @@
 "use client";
 
+import { useReducedMotion } from "motion/react";
+import { NumberTicker } from "@/components/ui/number-ticker";
 import type { DataCard } from "@/lib/monitor/types";
 import { Bars, Change, MiniCard, Sparkline } from "./MiniCard";
 
@@ -28,6 +30,15 @@ function delayColor(value: number): string {
   return "var(--sev-watch, #2dd4bf)";
 }
 
+// A figure that rolls to its new value as the feed updates. Whole numbers
+// above 100 and two decimals below, matching how the feed rounds them.
+function Money({ value, decimals: fixed }: { value: number; decimals?: number }) {
+  const reduced = useReducedMotion();
+  const decimals = fixed ?? (Math.abs(value) >= 100 ? 0 : 2);
+  if (reduced) return <>{value.toLocaleString("en-IN", { maximumFractionDigits: decimals })}</>;
+  return <NumberTicker value={value} decimalPlaces={decimals} locale="en-IN" />;
+}
+
 function Rows({ rows }: { rows: DataCard["rows"] }) {
   return (
     <ul className="flex flex-col gap-1.5">
@@ -35,7 +46,7 @@ function Rows({ rows }: { rows: DataCard["rows"] }) {
         <li key={row.label} className="flex items-baseline gap-2">
           <span className="font-mono text-[10px] tracking-[0.15em] text-muted-foreground">{row.label}</span>
           <span className="ml-auto font-mono text-[11px] tabular-nums text-foreground">
-            {row.value.toLocaleString("en-IN")}
+            <Money value={row.value} />
             {row.note ? <span className="ml-1 text-muted-foreground">{row.note}</span> : null}
           </span>
           <Change value={row.change} />
@@ -71,7 +82,9 @@ export function DataCardBody({ card }: { card: DataCard }) {
       return (
         <MiniCard card={card}>
           <div className="flex items-baseline gap-2">
-            <span className="font-display text-2xl leading-none text-foreground tabular-nums">{card.headline?.value}</span>
+            <span className="font-display text-2xl leading-none text-foreground tabular-nums">
+              {card.headline ? <Money value={Number(card.headline.value.replace(/,/g, ""))} decimals={2} /> : null}
+            </span>
             <Change value={card.headline?.change} />
           </div>
           <span className="mt-0.5 font-mono text-[9px] tracking-[0.15em] text-muted-foreground">{card.unit}</span>

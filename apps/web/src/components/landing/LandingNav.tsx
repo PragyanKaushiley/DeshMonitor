@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useLenis } from "lenis/react";
 import { usePathname } from "next/navigation";
 import { ThemeTogglerButton } from "@/components/animate-ui/components/buttons/theme-toggler";
+import { HyperText } from "@/components/ui/hyper-text";
 import { ScrollProgress } from "@/components/ui/scroll-progress";
+import { usePrefersReducedMotion } from "@/lib/landing/usePrefersReducedMotion";
 import { AccountDrawer } from "@/components/auth/account-drawer";
 import { Desh } from "./Desh";
 
@@ -14,6 +16,7 @@ export function LandingNav({ sceneLabel, showProgress = true }: { sceneLabel: st
   // render a stable placeholder until mounted to avoid a hydration mismatch.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const reducedMotion = usePrefersReducedMotion();
   const lenis = useLenis();
   const pathname = usePathname();
 
@@ -46,7 +49,14 @@ export function LandingNav({ sceneLabel, showProgress = true }: { sceneLabel: st
       </a>
       <div className="flex min-w-0 items-center gap-3 sm:gap-6">
         <span className="truncate font-mono text-[10px] tracking-[0.15em] text-muted-foreground sm:text-xs sm:tracking-[0.2em]">
-          {sceneLabel}
+          {reducedMotion ? (
+            sceneLabel
+          ) : (
+            // Scrambles into each new status (ORBITING → LOCATING INDIA → coordinates).
+            <HyperText as="span" duration={700} animateOnHover={false} className="p-0 text-[10px] font-normal tracking-[0.15em] sm:text-xs sm:tracking-[0.2em]">
+              {sceneLabel}
+            </HyperText>
+          )}
         </span>
         <div className="flex items-center gap-2">
           {mounted ? (

@@ -83,9 +83,16 @@
   65%, 85% {
     transform: translateZ(0) rotate(270deg);}
   100% {
-    transform: translateZ(0) rotate(360deg);}}}
+    transform: translateZ(0) rotate(360deg);}}
+  --animate-gradient: gradient 8s linear infinite;
+  @keyframes gradient {
+  to {
+    background-position: var(--bg-size, 300%) 0;}}}
 
 :root {
+  /* Animated gradient text: two close hues, dark enough on light surfaces. */
+  --grad-from: #0f766e;
+  --grad-to: #0369a1;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -124,6 +131,8 @@
 }
 
 .dark {
+  --grad-from: #5eead4;
+  --grad-to: #7dd3fc;
   --light-ray: rgba(94, 234, 212, 0.2);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.45), 0 6px 18px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --background: oklch(0.19 0.01 250);

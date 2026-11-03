@@ -26,6 +26,8 @@ export interface ShimmerButtonProps
 export interface ShimmerLinkProps
   extends ComponentPropsWithoutRef<typeof Link>,
     ShimmerOptions {
+  /** The moving spark and bottom glow. Off when something else draws the edge. */
+  spark?: boolean
   className?: string
   children?: React.ReactNode
 }
@@ -50,11 +52,11 @@ function shimmerStyle({
 const shimmerClassName =
   "group relative z-0 flex cursor-pointer items-center justify-center overflow-hidden [border-radius:var(--radius)] border border-white/10 px-6 py-3 whitespace-nowrap text-white [background:var(--bg)] transform-gpu transition-transform duration-300 ease-in-out active:translate-y-px"
 
-function ShimmerLayers({ children }: { children?: React.ReactNode }) {
+function ShimmerLayers({ children, spark = true }: { children?: React.ReactNode; spark?: boolean }) {
   return (
     <>
       {/* spark container */}
-      <div
+      {spark && <div
         className={cn(
           "-z-30 blur-[2px] motion-reduce:hidden",
           "@container-[size] absolute inset-0 overflow-visible"
@@ -65,11 +67,11 @@ function ShimmerLayers({ children }: { children?: React.ReactNode }) {
           {/* spark before */}
           <div className="animate-spin-around absolute -inset-full w-auto [translate:0_0] rotate-0 [background:conic-gradient(from_calc(270deg-(var(--spread)*0.5)),transparent_0,var(--shimmer-color)_var(--spread),transparent_var(--spread))]" />
         </div>
-      </div>
+      </div>}
       {children}
 
       {/* Highlight */}
-      <div
+      {spark && <div
         className={cn(
           "absolute inset-0 size-full",
 
@@ -84,14 +86,14 @@ function ShimmerLayers({ children }: { children?: React.ReactNode }) {
           // on click
           "group-active:shadow-[inset_0_-10px_10px_#ffffff3f]"
         )}
-      />
+      />}
 
       {/* backdrop */}
-      <div
+      {spark && <div
         className={cn(
           "absolute inset-(--cut) -z-20 [border-radius:var(--radius)] [background:var(--bg)]"
         )}
-      />
+      />}
     </>
   )
 }
@@ -136,6 +138,7 @@ export const ShimmerLink = React.forwardRef<HTMLAnchorElement, ShimmerLinkProps>
       shimmerDuration,
       borderRadius,
       background,
+      spark = true,
       className,
       children,
       ...props
@@ -149,7 +152,7 @@ export const ShimmerLink = React.forwardRef<HTMLAnchorElement, ShimmerLinkProps>
         ref={ref}
         {...props}
       >
-        <ShimmerLayers>{children}</ShimmerLayers>
+        <ShimmerLayers spark={spark}>{children}</ShimmerLayers>
       </Link>
     )
   }

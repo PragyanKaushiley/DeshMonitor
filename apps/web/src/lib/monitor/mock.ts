@@ -552,7 +552,8 @@ export function createMockSource(): MonitorSource {
               ...card,
               rows: card.rows.map((row) => ({
                 ...row,
-                value: walk(row.value, 0.02, 0, Infinity, row.value > 100 ? 0 : 2),
+                // Negative figures (the trade balance) stay negative.
+                value: walk(row.value, 0.02, row.value < 0 ? -Infinity : 0, row.value < 0 ? 0 : Infinity, Math.abs(row.value) > 100 ? 0 : 2),
                 ...(row.change === undefined ? {} : { change: walk(row.change || 0.1, 0.3, -30, 30, 1) }),
               })),
               series: card.series.map((v) => walk(v, 0.01, 0, Infinity, 0)),
