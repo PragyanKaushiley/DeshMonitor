@@ -44,17 +44,12 @@ const CATEGORIES = [
     description: "Notifications and institutional activity.",
     Icon: Landmark,
     Art: GovernmentArt,
-    span: "col-span-2 md:col-span-3",
+    span: "col-span-2",
   },
 ];
 
 const SHINE_COLORS = ["#2dd4bf", "#0f766e", "#5eead4"];
-const MOBILE_BREAKPOINT = 768;
 
-// Where India's centre lands in the data phase on desktop, as a fraction of
-// the section: enlarged towards the right edge so roughly half stays in
-// frame. On mobile it lands in the "All of India" tile instead (target()).
-const DESKTOP_TARGET = { x: 0.8, y: 0.5, scale: 2.6, opacity: 0.9 };
 // The outline is drawn this far right of its box so its tip sits over the
 // "D" of INDIA (see the map markup); undone when centring it in the tile.
 const MAP_SHIFT = 0.138;
@@ -64,6 +59,8 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
   const revealRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const copyRef = useRef<HTMLDivElement>(null);
+  const ctaRef = useRef<HTMLDivElement>(null);
+  const ctaTileRef = useRef<HTMLDivElement>(null);
   const hintRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const gridWrapRef = useRef<HTMLDivElement>(null);
@@ -77,40 +74,46 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
     const reveal = revealRef.current;
     const map = mapRef.current;
     const copy = copyRef.current;
+    const cta = ctaRef.current;
+    const ctaTile = ctaTileRef.current;
     const hint = hintRef.current;
     const grid = gridRef.current;
     const gridWrap = gridWrapRef.current;
     const indiaSlot = indiaSlotRef.current;
-    if (!section || !reveal || !map || !copy || !hint || !grid || !gridWrap || !indiaSlot) return;
+    if (!section || !reveal || !map || !copy || !cta || !ctaTile || !hint || !grid || !gridWrap || !indiaSlot) return;
 
     // Layout offsets (not getBoundingClientRect) so measurements ignore the
     // transforms this timeline itself applies when it re-measures on refresh.
     function target() {
       const cx = reveal!.offsetLeft + map!.offsetLeft + map!.offsetWidth / 2;
       const cy = reveal!.offsetTop + map!.offsetTop + map!.offsetHeight / 2;
-      if (section!.clientWidth < MOBILE_BREAKPOINT) {
-        // Into the India tile's image area: tile offsets are relative to the
-        // grid wrapper (the grid itself isn't positioned), the slot's to the tile.
-        const slot = indiaSlot!;
-        const tile = slot.offsetParent as HTMLElement;
-        const size = map!.offsetWidth;
-        const scale = (Math.min(slot.offsetWidth, slot.offsetHeight) * 0.9) / size;
-        const sx = gridWrap!.offsetLeft + tile.offsetLeft + slot.offsetLeft + slot.offsetWidth / 2;
-        const sy = gridWrap!.offsetTop + tile.offsetTop + slot.offsetTop + slot.offsetHeight / 2;
-        return { x: sx - cx - MAP_SHIFT * size * scale, y: sy - cy, scale, opacity: 0.9 };
-      }
-      const t = DESKTOP_TARGET;
+      // Into the India tile's image area: tile offsets are relative to the
+      // grid wrapper (the grid itself isn't positioned), the slot's to the tile.
+      const slot = indiaSlot!;
+      const tile = slot.offsetParent as HTMLElement;
+      const size = map!.offsetWidth;
+      const scale = (Math.min(slot.offsetWidth, slot.offsetHeight) * 1.1) / size;
+      const sx = gridWrap!.offsetLeft + tile.offsetLeft + slot.offsetLeft + slot.offsetWidth / 2;
+      const sy = gridWrap!.offsetTop + tile.offsetTop + slot.offsetTop + slot.offsetHeight / 2;
+      return { x: sx - cx - MAP_SHIFT * size * scale, y: sy - cy, scale, opacity: 0.9 };
+    }
+
+    // Desktop: the button glides into the empty tile beside Government &
+    // Policy. Phones hide that tile, so it simply fades with the copy.
+    function ctaTarget() {
+      if (section!.clientWidth < 768) return { x: 0, y: -12, opacity: 0 };
+      const gx = gridWrap!.offsetLeft + ctaTile!.offsetLeft + ctaTile!.offsetWidth / 2;
+      const gy = gridWrap!.offsetTop + ctaTile!.offsetTop + ctaTile!.offsetHeight / 2 + 12;
       return {
-        x: section!.clientWidth * t.x - cx,
-        y: section!.clientHeight * t.y - cy,
-        scale: t.scale,
-        opacity: t.opacity,
+        x: gx - (cta!.offsetLeft + cta!.offsetWidth / 2),
+        y: gy - (cta!.offsetTop + cta!.offsetHeight / 2),
+        opacity: 1,
       };
     }
 
     const ctx = gsap.context(() => {
       gsap.set(map, { opacity: 0, scale: 1.08 });
-      gsap.set([...copy.children, hint], { opacity: 0, y: 16 });
+      gsap.set([...copy.children, cta, hint], { opacity: 0, y: 16 });
       gsap.set(grid.children, { opacity: 0, y: 16 });
       // Hidden cards must not catch the pointer over the CTA beneath them.
       gsap.set(grid, { pointerEvents: "none" });
@@ -135,11 +138,22 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
           },
         })
         .to(map, { opacity: 0.9, scale: 1, ease: "power1.out", duration: 0.5 }, 0)
-        .to(copy.children, { opacity: 1, y: 0, stagger: 0.05, duration: 0.35 }, 0.1)
+        .to([...copy.children, cta], { opacity: 1, y: 0, stagger: 0.05, duration: 0.35 }, 0.1)
         .to(hint, { opacity: 1, y: 0, duration: 0.3 }, 0.45)
         .to({}, { duration: 0.3 })
         .set(copy, { pointerEvents: "none" })
         .to([copy, hint], { opacity: 0, y: -12, duration: 0.5 })
+        .to(
+          cta,
+          {
+            x: () => ctaTarget().x,
+            y: () => ctaTarget().y,
+            opacity: () => ctaTarget().opacity,
+            ease: "power2.inOut",
+            duration: 1.2,
+          },
+          "<",
+        )
         .to(
           map,
           {
@@ -162,9 +176,8 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
 
   const rm = reducedMotion;
 
-  // Tall tile. Its image area is where the journey's map lands on mobile
-  // (animated) — so its own outline is hidden there — while desktop keeps the
-  // big map at the right edge and shows this outline in the tile.
+  // Tall tile. Its image area is where the journey's map lands (animated), so
+  // its own outline is hidden until then; the static version shows it here.
   const indiaTile = (
     <BentoCard
       key="india"
@@ -172,9 +185,9 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
       description="Every state and union territory, watched in one place."
       Icon={MapPinned}
       background={
-        <div ref={indiaSlotRef} aria-hidden className="pointer-events-none absolute inset-x-3 top-3 bottom-[42%] md:inset-x-4 md:top-4">
-          <div className={`absolute inset-0 opacity-90 dark:invert ${rm ? "" : "max-md:hidden"}`}>
-            <Image src="/landing/india/india-outline.svg" alt="" fill className="object-contain" />
+        <div ref={indiaSlotRef} aria-hidden className="pointer-events-none absolute inset-x-3 top-5 bottom-[33%] md:inset-x-3 md:top-5">
+          <div className={`absolute inset-0 opacity-90 dark:invert ${rm ? "" : "hidden"}`}>
+            <Image src="/landing/india/india-outline-states.svg" alt="" fill className="object-contain" />
           </div>
         </div>
       }
@@ -189,15 +202,15 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
       ref={gridWrapRef}
       className={
         rm
-          ? "relative flex w-full justify-center md:w-[66%] md:px-10 xl:w-[62%]"
-          : "pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 max-md:pt-20 max-md:pb-6 md:right-auto md:w-[66%] md:px-10 xl:w-[62%]"
+          ? "relative flex w-full justify-center md:px-10"
+          : "pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 max-md:pt-20 max-md:pb-6 md:px-10 md:pt-16 md:pb-24"
       }
     >
       {/* Mobile: four rows fit under the nav — the stage height minus the
           nav, padding and gaps (≈140px), split four ways, up to 8.75rem. */}
       <BentoGrid
         ref={gridRef}
-        className="max-w-md auto-rows-[clamp(6.5rem,calc((var(--stage-h,100svh)-140px)/4),8.75rem)] grid-cols-2 gap-3 md:max-w-3xl md:auto-rows-[11rem] md:grid-cols-3 md:gap-4"
+        className="max-w-md auto-rows-[clamp(6.5rem,calc((var(--stage-h,100svh)-140px)/4),8.75rem)] grid-cols-2 gap-3 md:max-w-5xl md:auto-rows-[clamp(8.5rem,calc((var(--stage-h,100svh)-250px)/3),11rem)] md:grid-cols-3 md:gap-4"
       >
         {CATEGORIES.map(({ title, description, Icon, Art, span }, i) => [
           i === 1 ? indiaTile : null,
@@ -207,11 +220,21 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
             description={description}
             Icon={Icon}
             background={<Art />}
-            className={`${span} bg-card/80 backdrop-blur-sm dark:bg-card/80`}
+            className={`${rm && title.startsWith("GOVERNMENT") ? "col-span-2 md:col-span-3" : span} bg-card/80 backdrop-blur-sm dark:bg-card/80`}
           >
             <ShineBorder shineColor={SHINE_COLORS} />
           </BentoCard>,
         ])}
+        {/* Where the Enter button lands (desktop only). */}
+        <div
+          ref={ctaTileRef}
+          className={`relative hidden overflow-hidden rounded-xl border border-border bg-card/80 backdrop-blur-sm md:block dark:border-white/10 ${rm ? "md:hidden" : ""}`}
+        >
+          <ShineBorder shineColor={SHINE_COLORS} />
+          <p className="absolute inset-x-0 top-4 text-center font-mono text-[10px] tracking-[0.2em] text-muted-foreground">
+            LIVE DASHBOARD
+          </p>
+        </div>
       </BentoGrid>
     </div>
   );
@@ -242,7 +265,7 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
               outline SVG is letterboxed and the tip is west of centre);
               shifting 13.8% puts it directly above the "D" of INDIA. */}
           <div className="absolute inset-0 translate-x-[13.8%]">
-            <Image src="/landing/india/india-outline.svg" alt="Outline map of India" fill className="object-contain" />
+            <Image src="/landing/india/india-outline-states.svg" alt="Outline map of India" fill className="object-contain" />
           </div>
         </div>
 
@@ -256,6 +279,9 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
             <Desh /> MONITOR
           </p>
           <p className="font-display text-lg text-muted-foreground sm:text-xl">See what&apos;s happening.</p>
+        </div>
+
+        <div ref={ctaRef} className="relative z-20 -mt-2">
           {/* Display-font caps like the nav wordmark: देश has no glyphs in
               the mono font and sat above its baseline, looking detached. */}
           <ShimmerLink
@@ -263,7 +289,7 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
             borderRadius="0px"
             background="var(--background)"
             shimmerColor="#2dd4bf"
-            className="mt-3 inline-flex gap-2 border-foreground/30 font-display text-sm tracking-[0.2em] text-foreground sm:text-base"
+            className="inline-flex gap-2 border-foreground/30 font-display text-sm tracking-[0.2em] text-foreground sm:text-base"
           >
             ENTER <Desh tooltip={false} /> MONITOR
             <span aria-hidden>→</span>
@@ -291,20 +317,10 @@ export function IndiaJourney({ reducedMotion }: { reducedMotion: boolean }) {
       )}
 
       {rm ? (
-        // Static version of the animated end state: India enlarged towards
-        // the right edge beside the grid on desktop (DESKTOP_TARGET); on
-        // mobile the India tile carries the outline instead. In
-        // reduced mode each of the two stages is one full screen, as in the
-        // animated version; the map is capped to fit the screen's height.
+        // Static version of the animated end state: the India tile carries
+        // the outline. In reduced mode each of the two stages is one full
+        // screen, as in the animated version.
         <div className="relative flex min-h-[var(--stage-h,100svh)] w-full items-center py-16">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 left-[80%] hidden size-[min(clamp(572px,52vw,780px),calc(var(--stage-h,100svh)*0.92))] -translate-x-1/2 -translate-y-1/2 opacity-90 dark:invert md:block"
-          >
-            <div className="absolute inset-0 translate-x-[13.8%]">
-              <Image src="/landing/india/india-outline.svg" alt="" fill className="object-contain" />
-            </div>
-          </div>
           {grid}
         </div>
       ) : (

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CATEGORIES } from "@/lib/monitor/categories";
 import { useStageHeight } from "@/lib/monitor/useStageHeight";
@@ -53,6 +54,18 @@ export function MonitorDashboard() {
   const layout = useIsDesktop();
   const desktop = layout === true;
   const stageHeight = useStageHeight();
+  // One loader for the whole page: the dashboard mounts underneath it (so its
+  // data and the map outline load in the background) and the loader lifts
+  // once both are in, instead of every panel showing its own skeleton.
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const onMapLoaded = useCallback(() => setMapLoaded(true), []);
+  const loading = layout === null || !feed.ready || !mapLoaded;
+  const [loaderGone, setLoaderGone] = useState(false);
+  useEffect(() => {
+    if (loading) return;
+    const timer = setTimeout(() => setLoaderGone(true), 500);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
 
   const visible = useMemo(() => filters.apply(feed.signals), [filters, feed.signals]);
@@ -79,14 +92,16 @@ export function MonitorDashboard() {
   const mobileSignals = mobileExpanded ? visible : visible.slice(0, 4);
 
   // The screen width isn't known until after mount; showing either layout
-  // before then makes the page jump, so a skeleton holds the place.
-  if (layout === null) return <MonitorSkeleton />;
-
+  // before then makes the page jump, so the loader holds the place. It is
+  // always the second child, so it stays mounted from first paint to the
+  // end and its shimmer never restarts.
   return (
+    <>
+    {layout !== null && (
     <TooltipProvider delayDuration={200}>
       {/* Desktop is laid out against the height the window had at this width
           (see useStageHeight); a shorter window scrolls rather than squeezes. */}
-      <div className="h-[100svh] overflow-y-auto bg-background md:h-screen">
+      <ScrollArea className="h-[100svh] bg-background md:h-screen" viewportClassName="[&>div]:block!">
       <div
         className="flex h-[100svh] flex-col overflow-hidden bg-background md:h-(--stage-h,100vh)"
         style={desktop && stageHeight ? ({ "--stage-h": `${stageHeight}px` } as React.CSSProperties) : undefined}
@@ -112,13 +127,14 @@ export function MonitorDashboard() {
                 onSelect={openSignal}
                 pulseId={feed.lastInsertedId}
                 breadcrumb={breadcrumb}
+                onLoaded={onMapLoaded}
               />
               <TimeRangeBox filters={filters} />
               <LayersPanel filters={filters} signals={visible} />
             </div>
           </section>
 
-          <div className="-m-1.5 min-w-0 flex-[42] overflow-y-auto overscroll-contain p-1.5">
+          <ScrollArea className="-m-1.5 min-w-0 flex-[42]" viewportClassName="overscroll-contain p-1.5 [&>div]:block!">
             <div className="flex flex-col gap-3">
               <SignalsPanel
                 className="h-[440px] shrink-0"
@@ -133,7 +149,7 @@ export function MonitorDashboard() {
               />
               <PanelGrid cards={feed.cards} ready={feed.ready} />
             </div>
-          </div>
+          </ScrollArea>
         </div>
         )}
 
@@ -176,6 +192,7 @@ export function MonitorDashboard() {
             onSelect={openSignal}
             pulseId={feed.lastInsertedId}
             breadcrumb={breadcrumb}
+            onLoaded={onMapLoaded}
           />
 
           <SignalsPanel
@@ -231,14 +248,23 @@ export function MonitorDashboard() {
           <a href="/privacy" className="ml-auto hover:text-foreground">PRIVACY</a>
         </footer>
       </div>
-      </div>
+      </ScrollArea>
     </TooltipProvider>
+    )}
+    {!loaderGone && <MonitorSkeleton fading={!loading} />}
+    </>
   );
 }
 
-export function MonitorSkeleton() {
+export function MonitorSkeleton({ fading = false }: { fading?: boolean }) {
   return (
-    <div className="flex h-[100svh] flex-col overflow-hidden bg-background md:h-screen" aria-busy="true" aria-label="Loading the dashboard">
+    <div
+      className={`fixed inset-0 z-50 flex flex-col overflow-hidden bg-background transition-opacity duration-500 motion-reduce:transition-none ${
+        fading ? "pointer-events-none opacity-0" : "opacity-100"
+      }`}
+      aria-busy={!fading}
+      aria-label="Loading the dashboard"
+    >
       <div className="flex shrink-0 items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Skeleton className="h-5 w-32" />
         <Skeleton className="hidden h-8 max-w-md flex-1 md:block" />

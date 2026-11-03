@@ -20,6 +20,9 @@ export interface MonitorFeed {
 }
 
 const MAX_SIGNALS = 60;
+// Temporary: keeps the loading skeletons on screen for review, in step with
+// the map's own hold in IndiaMap.
+const READY_DELAY_MS = 4000;
 
 export function useMonitorFeed(
   // Asked at the moment a signal arrives: may it be inserted, or should it
@@ -32,6 +35,10 @@ export function useMonitorFeed(
   const [signals, setSignals] = useState<Signal[]>([]);
   const [cards, setCards] = useState<DataCard[]>([]);
   const [queued, setQueued] = useState<Signal[]>([]);
+  // The queue is also kept in a ref so releasing it can read it directly:
+  // updating other state from inside a state updater runs twice when React
+  // re-invokes the updater, which put the same signals into the list twice.
+  const queuedRef = useRef<Signal[]>([]);
   const [lastInsertedId, setLastInsertedId] = useState<string | null>(null);
   // Read inside the subscription callback, which is set up once, so the
   // latest test has to be reachable through a ref.
@@ -47,7 +54,7 @@ export function useMonitorFeed(
     const source = makeSourceRef.current();
     setSignals(source.initialSignals());
     setCards(source.dataCards());
-    setReady(true);
+    const readyTimer = setTimeout(() => setReady(true), READY_DELAY_MS);
 
     const stopFeed = source.subscribe((event) => {
       if (event.type === "update") {
@@ -67,7 +74,8 @@ export function useMonitorFeed(
       }
 
       if (canInsertRef.current?.() === false) {
-        setQueued((prev) => [event.signal, ...prev]);
+        queuedRef.current = [event.signal, ...queuedRef.current];
+        setQueued(queuedRef.current);
         return;
       }
       setSignals((prev) => [event.signal, ...prev].slice(0, MAX_SIGNALS));
@@ -76,6 +84,7 @@ export function useMonitorFeed(
 
     const stopCards = source.subscribeCards(setCards);
     return () => {
+      clearTimeout(readyTimer);
       stopFeed();
       stopCards();
     };
@@ -84,13 +93,15 @@ export function useMonitorFeed(
   // Stable identities: the panel observes scroll position through these, and
   // a new function each render would tear that observer down every time.
   const releaseQueued = useCallback(() => {
-    setQueued((pending) => {
-      if (pending.length > 0) {
-        setSignals((prev) => [...pending, ...prev].slice(0, MAX_SIGNALS));
-        setLastInsertedId(pending[0]?.id ?? null);
-      }
-      return [];
+    const pending = queuedRef.current;
+    if (pending.length === 0) return;
+    queuedRef.current = [];
+    setQueued([]);
+    setSignals((prev) => {
+      const known = new Set(prev.map((s) => s.id));
+      return [...pending.filter((s) => !known.has(s.id)), ...prev].slice(0, MAX_SIGNALS);
     });
+    setLastInsertedId(pending[0]?.id ?? null);
   }, []);
 
   return useMemo(

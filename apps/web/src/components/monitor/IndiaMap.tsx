@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SEVERITY, SEVERITY_ORDER } from "@/lib/monitor/categories";
 import { layoutLabels } from "@/lib/monitor/labels";
 import type { Signal } from "@/lib/monitor/types";
@@ -69,6 +70,7 @@ export function IndiaMap({
   onSelect,
   pulseId,
   breadcrumb,
+  onLoaded,
   className = "",
 }: {
   signals: Signal[];
@@ -76,10 +78,22 @@ export function IndiaMap({
   onSelect: (signal: Signal) => void;
   pulseId: string | null;
   breadcrumb: string;
+  // Called once the outline and borders are drawn.
+  onLoaded?: () => void;
   className?: string;
 }) {
   const [paths, setPaths] = useState<MapPath[] | null>(null);
   const [statePaths, setStatePaths] = useState<MapPath[]>([]);
+  // The outline, the borders and the land fill appear together: without
+  // this the borders arrived first and the land sat in the background colour
+  // until the outline came in.
+  const [statesDone, setStatesDone] = useState(false);
+  const mapReady = paths !== null && statesDone;
+  const onLoadedRef = useRef(onLoaded);
+  onLoadedRef.current = onLoaded;
+  useEffect(() => {
+    if (mapReady) onLoadedRef.current?.();
+  }, [mapReady]);
   const [zoom, setZoom] = useState(1);
   const reducedMotion = usePrefersReducedMotion();
   const gridId = useId();
@@ -104,6 +118,11 @@ export function IndiaMap({
     let cancelled = false;
     fetch(BOUNDARY)
       .then((res) => res.json())
+      // Temporary: hold the loading skeleton on screen for review.
+      .then(async (geo: GeoJson) => {
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+        return geo;
+      })
       .then((geo: GeoJson) => {
         if (!cancelled) setPaths(toPaths(geo));
       })
@@ -126,7 +145,10 @@ export function IndiaMap({
         if (!cancelled) setStatePaths(toPaths(geo).filter((p) => !p.islet));
       })
       // Internal borders are a refinement; the country outline stands alone.
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setStatesDone(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -175,10 +197,17 @@ export function IndiaMap({
         style={{ background: "radial-gradient(60% 55% at 50% 45%, var(--map-glow, rgba(45,212,191,0.12)), transparent 55%)" }}
       />
 
+      {/* Holds the place until the boundary file arrives. */}
+      {!mapReady && <Skeleton aria-hidden className="absolute inset-0 rounded-none" />}
+
       <svg
         viewBox={`0 0 ${VIEW.width} ${VIEW.height}`}
         className="size-full"
-        style={{ transform: `scale(${zoom})`, transition: reducedMotion ? "none" : "transform .35s ease-out" }}
+        style={{
+          transform: `scale(${zoom})`,
+          opacity: mapReady ? 1 : 0,
+          transition: reducedMotion ? "none" : "transform .35s ease-out, opacity .5s ease-out",
+        }}
         role="img"
         aria-label={`Map of India showing ${located.length} located signals`}
       >

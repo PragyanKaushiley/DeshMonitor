@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { Maximize2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { MagicCard } from "@/components/ui/magic-card";
 import { CATEGORIES } from "@/lib/monitor/categories";
 import type { DataCard, DataCardId } from "@/lib/monitor/types";
@@ -57,9 +59,49 @@ export function MiniCard({
           </button>
         )}
       </header>
-      <div className="flex min-h-0 flex-1 flex-col justify-center">{children}</div>
+      {/* A card has a fixed size, so a long list scrolls inside it. Auto margins
+          on the first and last child centre short content without making the
+          top of tall content unreachable, and the bottom padding keeps the
+          last row clear of the resize grip. */}
+      <CardBody>{children}</CardBody>
     </article>
     </MagicCard>
+  );
+}
+
+// The scrolling body. Its edges only fade when there is something to scroll
+// to; otherwise the fade would dim the first row of a card that fits.
+function CardBody({ children }: { children: React.ReactNode }) {
+  const viewport = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
+
+  useEffect(() => {
+    const el = viewport.current;
+    const content = inner.current;
+    if (!el || !content) return;
+    const check = () => setOverflowing(el.scrollHeight > el.clientHeight + 1);
+    check();
+    // Both the box and its content change size (rows come and go).
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <ScrollArea
+      className="min-h-0 flex-1"
+      viewportRef={viewport}
+      viewportClassName={`overscroll-contain [--scroll-fade:1rem] [&>div]:block! ${overflowing ? "scroll-fade-y" : ""}`}
+    >
+      <div
+        ref={inner}
+        className="flex min-h-full flex-col pb-4 [&>:first-child]:mt-auto [&>:last-child]:mb-auto"
+      >
+        {children}
+      </div>
+    </ScrollArea>
   );
 }
 

@@ -175,15 +175,29 @@ export function GlobeScene({
       const [THREE, { default: ThreeGlobe }] = await Promise.all([import("three"), import("three-globe")]);
 
       // Same cached promises the loader already resolved — no second download/parse.
-      const [world, india] = await Promise.allSettled([
+      const [world, india, states] = await Promise.allSettled([
         fetchJson<{ features: CountryFeature[] }>("/landing/globe/countries-110m.geojson"),
         fetchJson<{ features: CountryFeature[] }>("/landing/globe/india-boundary.geojson"),
+        fetchJson<{ features: CountryFeature[] }>("/landing/globe/india-states.geojson"),
       ]);
       // Missing country data degrades to a bare sphere rather than blocking the scene.
       let countries: CountryFeature[] = world.status === "fulfilled" ? world.value.features : [];
       // Swap Natural Earth's coarse India for the OSM-derived boundary.
       const preciseIndia = india.status === "fulfilled" ? india.value.features[0] : undefined;
       if (preciseIndia) countries = [...countries.filter((f) => !isIndia(f)), preciseIndia];
+      // State borders are drawn as plain lines, not polygons: even a
+      // transparent polygon writes depth and hid India's own fill beneath it.
+      // They are a refinement; without them the country outline stands alone.
+      const stateLines: [number, number][][] = [];
+      if (states.status === "fulfilled") {
+        for (const f of states.value.features) {
+          const g = f.geometry as { type: string; coordinates: number[][][] | number[][][][] };
+          const polys = (g.type === "MultiPolygon" ? g.coordinates : [g.coordinates]) as number[][][][];
+          for (const poly of polys) {
+            for (const ring of poly) stateLines.push(ring.map(([lng, lat]) => [lat as number, lng as number]));
+          }
+        }
+      }
       if (cancelled || !container || !canvas) return;
 
       const theme = currentTheme();
@@ -215,7 +229,13 @@ export function GlobeScene({
         .polygonAltitude((f) => (isIndia(f) ? 0.018 : 0.006))
         // The default 1s altitude transition rebuilds polygon geometry every
         // frame — right during the loader handoff, and again on theme changes.
-        .polygonsTransitionDuration(0);
+        .polygonsTransitionDuration(0)
+        .pathsData(stateLines)
+        .pathPointLat((p) => (p as [number, number])[0])
+        .pathPointLng((p) => (p as [number, number])[1])
+        .pathPointAlt(0.0185)
+        .pathColor(() => `${theme.accent}99`)
+        .pathTransitionDuration(0);
       scene.add(globe);
       scene.background = null;
 
@@ -373,6 +393,7 @@ export function GlobeScene({
         globe.atmosphereColor(t.atmosphere);
         globe.polygonStrokeColor((f) => (isIndia(f) ? t.accent : t.wireframe));
         globe.polygonCapColor((f) => (isIndia(f) ? `${t.accent}55` : "rgba(0,0,0,0)"));
+        globe.pathColor(() => `${t.accent}99`);
         render();
       });
       themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
