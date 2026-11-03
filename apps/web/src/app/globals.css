@@ -241,9 +241,16 @@
   }
 }
 
+/* A narrow band crosses at a constant speed, leaves the block entirely and
+   rests off-screen before the next pass, so there is no slow-down or pop at
+   the right edge. */
 @keyframes skeleton-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  70%,
   100% {
-    transform: translateX(100%);
+    transform: translateX(270%);
   }
 }
 
