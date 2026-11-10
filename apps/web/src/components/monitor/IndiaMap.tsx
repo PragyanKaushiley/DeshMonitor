@@ -233,6 +233,13 @@ export function IndiaMap({
   // Zoom, and where the zoomed map is shifted to, in pixels.
   const [view, setView] = useState({ zoom: 1, tx: 0, ty: 0 });
   const { zoom } = view;
+  // The part of the view that has been "baked" into the drawing. While the map
+  // moves it is scaled as a bitmap through the svg's CSS transform (cheap, but
+  // blurry); once it stops, the zoom is applied inside the svg instead, so the
+  // browser draws the vectors at their real size. Phone browsers keep the
+  // blurry bitmap after a CSS scale, which is why the CSS transform is dropped
+  // at rest rather than left in place.
+  const [settled, setSettled] = useState(view);
   // The state's own outline, drawn stronger while it is the one in focus.
   const [focusPath, setFocusPath] = useState<string | null>(null);
   // The state the map is showing. It changes in the same step as the zoom,
@@ -359,6 +366,11 @@ export function IndiaMap({
 
   // The move is over: show markers and names again. A timeout backs up
   // transitionend, which doesn't fire when nothing actually moved.
+  // Bake the finished zoom into the drawing (before paint, so nothing flashes).
+  useLayoutEffect(() => {
+    if (!moving) setSettled(view);
+  }, [moving, view]);
+
   useEffect(() => {
     if (!moving) return;
     const timer = window.setTimeout(() => setMoving(false), reducedMotion ? 0 : 950);
@@ -464,14 +476,15 @@ export function IndiaMap({
         viewBox={`0 0 ${VIEW.width} ${VIEW.height}`}
         className="size-full"
         style={{
-          transform: `translate(${view.tx}px, ${view.ty}px) scale(${zoom})`,
+          // Only what is left to move on top of the baked view: nothing at rest.
+          transform: `translate(${view.tx - (zoom / settled.zoom) * settled.tx}px, ${view.ty - (zoom / settled.zoom) * settled.ty}px) scale(${zoom / settled.zoom})`,
           // While it moves, the map is its own layer, drawn once and scaled. Without
           // this the browser rasterised the whole drawing at the final (up to 9x)
           // size at the start of every zoom-in, which froze the page for about a
           // second. Dropped at the end so it is redrawn sharp at its new size.
           willChange: moving ? "transform" : undefined,
           opacity: mapReady ? 1 : 0,
-          transition: reducedMotion ? "none" : "transform .9s cubic-bezier(.22,1,.36,1), opacity .5s ease-out",
+          transition: reducedMotion ? "none" : !moving ? "opacity .5s ease-out" : "transform .9s cubic-bezier(.22,1,.36,1), opacity .5s ease-out",
         }}
         role="img"
         aria-label={`Map of India showing ${located.length} located signals`}
@@ -487,6 +500,7 @@ export function IndiaMap({
 
         </defs>
 
+        <g transform={`translate(${VIEW.width / 2 + settled.tx / scale} ${VIEW.height / 2 + settled.ty / scale}) scale(${settled.zoom}) translate(${-VIEW.width / 2} ${-VIEW.height / 2})`}>
         <LandLayers paths={paths} borders={borders} focusRegion={focusRegion} zoom={zoom} pxScale={scale * zoom} gridId={gridId} />
 
         {/* The stretch of the country's outline that touches the state in focus,
@@ -600,6 +614,7 @@ export function IndiaMap({
             </g>
           );
         })}
+        </g>
         </g>
       </svg>
 

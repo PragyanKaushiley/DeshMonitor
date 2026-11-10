@@ -55,6 +55,29 @@ export function DataCarousel({
     };
   }, [api, reducedMotion]);
 
+  // A side-scroll wheel or a trackpad's horizontal swipe sends `deltaX`, which
+  // Embla ignores. Pushed into the carousel here; a mostly vertical wheel is
+  // left alone so the page still scrolls past it.
+  useEffect(() => {
+    if (!api) return;
+    const root = api.rootNode();
+    let resume: number | undefined;
+    const onWheel = (event: WheelEvent) => {
+      if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+      event.preventDefault();
+      const plugin = api.plugins().autoScroll as { stop?: () => void; play?: () => void } | undefined;
+      plugin?.stop?.();
+      api.internalEngine().scrollTo.distance(-event.deltaX, false);
+      window.clearTimeout(resume);
+      if (plugin) resume = window.setTimeout(() => plugin.play?.(), 2500);
+    };
+    root.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      root.removeEventListener("wheel", onWheel);
+      window.clearTimeout(resume);
+    };
+  }, [api]);
+
   // The drift keeps running through a programmatic scroll and overwrites
   // it, so the buttons pause it first and let it carry on afterwards.
   const step = useCallback(
